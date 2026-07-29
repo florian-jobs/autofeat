@@ -8,12 +8,38 @@ from ITMO_FS.filters.multivariate import CMIM, MRMR
 from ITMO_FS.utils.information_theory import entropy, conditional_mutual_information
 from sklearn.preprocessing import KBinsDiscretizer
 
-from feature_discovery.helpers.information_theory import conditional_entropy
-from feature_discovery.autofeat_pipeline.feature_selection import pearson_correlation, spearman_correlation
+from .feature_selection import pearson_correlation, spearman_correlation
 
 
 xxh = xxhash.xxh64(seed=42)
 
+def conditional_entropy(x_j: np.ndarray, y: np.ndarray) -> np.float64:
+    def elog(value: np.ndarray) -> np.ndarray:
+        log_values = np.zeros_like(value)
+        mask = value > 0
+        log_values[mask] = np.log(value[mask])
+        return value * log_values
+    # Find unique values and their corresponding indices
+    unique_x, inverse_x = np.unique(x_j, return_inverse=True)
+    unique_y, inverse_y = np.unique(y, return_inverse=True)
+
+    # Create a contingency table
+    contingency_table = np.zeros((len(unique_x), len(unique_y)), dtype=int)
+    np.add.at(contingency_table, (inverse_x, inverse_y), 1)
+
+    # Compute counts for each unique value in x_j
+    counts_x = np.sum(contingency_table, axis=1)
+
+    # Calculate the probabilities P(Y|X)
+    prob_y_given_x = contingency_table / counts_x[:, None]
+
+    # Compute entropy for each unique value in x_j
+    part_entropies = -np.sum(elog(prob_y_given_x), axis=1)
+
+    # Compute the weighted average of the part_entropies
+    entropy = np.sum(counts_x / len(x_j) * part_entropies)
+
+    return entropy
 
 class RelevanceRedundancy:
     def __init__(self, target_column: str, jmi: bool = False, pearson: bool = False):
@@ -27,10 +53,10 @@ class RelevanceRedundancy:
     def measure_relevance(
         self, dataframe: pd.DataFrame, new_features: List[str], target_column: pd.Series
     ) -> List[tuple]:
-        if self.target_column in new_features:
-            new_features.remove(self.target_column)
+        # Create a copy to avoid modifying the input list
+        features_to_use = [f for f in new_features if f != self.target_column]
 
-        new_common_features = list(set(dataframe.columns).intersection(set(new_features)))
+        new_common_features = sorted(list(set(dataframe.columns).intersection(set(features_to_use))))
         if len(new_common_features) == 0:
             return []
 
@@ -65,7 +91,7 @@ class RelevanceRedundancy:
         selected_features_int = [i for i, value in enumerate(dataframe.columns) if value in selected_features]
         new_features_int = [i for i, value in enumerate(dataframe.columns) if value in relevant_features]
 
-        est = KBinsDiscretizer(strategy='uniform', encode='ordinal')
+        est = KBinsDiscretizer(strategy='uniform', encode='ordinal', random_state=42)
         try:
             discr_dataframe = est.fit_transform(dataframe)
         except ValueError:
@@ -156,28 +182,41 @@ class RelevanceRedundancy:
         return entr - cond_entropy
 
     def cached_conditional_mutual_information(self, x, y, z):
-        h1 = hash(str(list(zip(x, z))))
+        # Use xxhash for deterministic hashing instead of built-in hash()
+        xxh.update(x.tobytes() if hasattr(x, 'tobytes') else str(x).encode())
+        xxh.update(np.array(z).tobytes() if hasattr(z, 'tobytes') else str(z).encode())
+        h1 = xxh.intdigest()
+        xxh.reset()
         if h1 in self.dataframe_entropy:
             entropy_xz = self.dataframe_entropy[h1]
         else:
             entropy_xz = entropy(list(zip(x, z)))
             self.dataframe_entropy[h1] = entropy_xz
 
-        h2 = hash(str(list(zip(y, z))))
+        xxh.update(np.array(y).tobytes() if hasattr(y, 'tobytes') else str(y).encode())
+        xxh.update(np.array(z).tobytes() if hasattr(z, 'tobytes') else str(z).encode())
+        h2 = xxh.intdigest()
+        xxh.reset()
         if h2 in self.dataframe_entropy:
             entropy_yz = self.dataframe_entropy[h2]
         else:
             entropy_yz = entropy(list(zip(y, z)))
             self.dataframe_entropy[h2] = entropy_yz
 
-        h3 = hash(str(list(zip(x, y, z))))
+        xxh.update(x.tobytes() if hasattr(x, 'tobytes') else str(x).encode())
+        xxh.update(np.array(y).tobytes() if hasattr(y, 'tobytes') else str(y).encode())
+        xxh.update(np.array(z).tobytes() if hasattr(z, 'tobytes') else str(z).encode())
+        h3 = xxh.intdigest()
+        xxh.reset()
         if h3 in self.dataframe_entropy:
             entropy_xyz = self.dataframe_entropy[h3]
         else:
             entropy_xyz = entropy(list(zip(x, y, z)))
             self.dataframe_entropy[h3] = entropy_xyz
 
-        h4 = hash(str(z))
+        xxh.update(np.array(z).tobytes() if hasattr(z, 'tobytes') else str(z).encode())
+        h4 = xxh.intdigest()
+        xxh.reset()
         if h4 in self.dataframe_entropy:
             entropy_z = self.dataframe_entropy[h4]
         else:
@@ -190,7 +229,7 @@ class RelevanceRedundancy:
 def measure_relevance(
     dataframe: pd.DataFrame, feature_names: List[str], target_column: pd.Series
 ) -> Tuple[Optional[list], list]:
-    common_features = list(set(dataframe.columns).intersection(set(feature_names)))
+    common_features = sorted(list(set(dataframe.columns).intersection(set(feature_names))))
 
     if len(common_features) == 0:
         return None, []

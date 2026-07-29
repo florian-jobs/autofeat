@@ -157,3 +157,7 @@ neo4j-data/
 paths_*.csv
 tfd/*
 *nohup*.out
+
+#etc
+notes.txt
+tmp/

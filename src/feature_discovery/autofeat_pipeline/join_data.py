@@ -4,11 +4,12 @@ import pandas as pd
 import polars as pl
 from polars import col
 
-from feature_discovery.graph_processing.neo4j_transactions import (
-    get_pk_fk_nodes,
-)
-from feature_discovery.helpers.dict_utils import transform_node_to_dict
+from feature_discovery.graph_processing.neo4j_transactions import get_pk_fk_nodes
 
+def transform_node_to_dict(node):
+    dict_node = {'id': node.get('id'), 'label': node.get('label'), 'name': node.get('name'),
+                 'source_name': node.get('source_name'), 'source_path': node.get('source_path')}
+    return dict_node
 
 def join_directly_connected(base_table_id: str):
     nodes = get_pk_fk_nodes(base_table_id)
@@ -35,7 +36,6 @@ def join_directly_connected(base_table_id: str):
 
     return partial_join
 
-
 def pl_outer_join(df1: pl.DataFrame, df2: pl.DataFrame, how, left_on, right_on):
     new_names = [f"{x}_tmp" for x in [left_on, right_on]]
 
@@ -46,16 +46,15 @@ def pl_outer_join(df1: pl.DataFrame, df2: pl.DataFrame, how, left_on, right_on):
     # perform join and drop columns
     return df1.join(df2, left_on=new_names[0], right_on=new_names[1], how=how).drop(new_names)
 
-
 def join_and_save(
-    left_df: pd.DataFrame,
-    right_df: pd.DataFrame,
-    left_column_name: str,
-    right_column_name: str,
-    join_path: Path,
-    csv: bool = True,
-    save_to_disk: bool = True,
-) -> pd.DataFrame or None:
+        left_df: pd.DataFrame,
+        right_df: pd.DataFrame,
+        left_column_name: str,
+        right_column_name: str,
+        join_path: Path,
+        csv: bool = True,
+        save_to_disk: bool = True,
+) -> pd.DataFrame:
     """
     Join two dataframes and save the result on disk.
 
@@ -68,6 +67,7 @@ def join_and_save(
     :return: The join result.
     """
     if left_df[left_column_name].dtype != right_df[right_column_name].dtype:
+        print(f"Data type mismatch: {left_df[left_column_name].dtype} vs {right_df[right_column_name].dtype}")
         return None
 
     if isinstance(left_df, pl.DataFrame):
