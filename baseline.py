@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Optional
 
 import pandas as pd
 import polars as pl
 
 from feature_discovery.autofeat_pipeline.autofeat import AutoFeat
 from feature_discovery.autofeat_pipeline.join_path_utils import get_path_length
-from feature_discovery.experiments.ablation import load_join_paths
 from feature_discovery.experiments.dataset_object import CLASSIFICATION, REGRESSION
 from feature_discovery.experiments.evaluate_join_paths import join_from_path, resolve_path_list
 from feature_discovery.graph_processing.neo4j_transactions import clear_df_cache
@@ -94,10 +92,7 @@ class AutoFeatBaseline:
         base_table_df.to_csv(lake_data_folder / base_table_id, index=False, sep=base_table_sep)
 
         join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
-        if Path(join_paths_df_path).exists():
-            join_paths_df = pd.read_csv(join_paths_df_path)
-        else:
-            join_paths_df = load_join_paths(str(lake_data_folder / "connections.csv"))
+        join_paths_df = pd.read_csv(join_paths_df_path)
 
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
@@ -131,7 +126,7 @@ class AutoFeatBaseline:
                 bfs_traversal.ranking.items(),
                 key=lambda r: (-float(r[1]), get_path_length(r[0]), r[0]),
             )
-            join_name, rank = sorted_paths[0]
+            join_name, _rank = sorted_paths[0]
 
             if join_name == bfs_traversal.base_table_id:
                 return pl.from_pandas(base_table_df)

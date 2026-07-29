@@ -23,7 +23,7 @@ except ImportError:
     pass
 
 def resolve_path_list(bfs_result: AutoFeat, join_name: str):
-    features = bfs_result.partial_join_selected_features[join_name]
+    features = list(bfs_result.partial_join_selected_features[join_name])
     features.append(bfs_result.target_column)
     features.extend(bfs_result.partial_join_selected_features[bfs_result.base_table_id])  # base features
     logging.debug(f"Feature before join_key removal:\n{features}")
