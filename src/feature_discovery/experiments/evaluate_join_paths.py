@@ -1,6 +1,6 @@
 from __future__ import annotations
 from feature_discovery.autofeat_pipeline.autofeat import AutoFeat
-from feature_discovery.autofeat_pipeline.join_path_utils import get_path_length
+from feature_discovery.autofeat_pipeline.join_path_utils import get_path_length, HOP_SEP, FIELD_SEP
 from feature_discovery.experiments.evaluation_algorithms import evaluate_all_algorithms
 from feature_discovery.graph_processing.neo4j_transactions import get_df_with_prefix
 from typing import Tuple, List
@@ -34,8 +34,8 @@ def resolve_path_list(bfs_result: AutoFeat, join_name: str):
 
     # to_table -> (from_table, from_column, to_column, to_table), one entry per hop in the join path
     path_tables = {}
-    for p in join_name.split("--"):
-        aux = p.split("-")
+    for p in join_name.split(HOP_SEP):
+        aux = p.split(FIELD_SEP)
         if len(aux) == 4:
             path_tables[aux[3]] = (aux[0], aux[1], aux[2], aux[3])
 

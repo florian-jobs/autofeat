@@ -11,6 +11,7 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | Path | Role |
 | --- | --- |
 | `baseline.py` | `AutoFeatBaseline` — the integration adapter. Duck-typed `run(config) -> polars.DataFrame`, same shape as the sibling `QCRBaseline`/`ARDABaseline` |
+| `discover_join_paths.py` | Generates `join_paths.csv` for a base table with none yet — Valentine schema-matches it against up to `--limit` tables under `--corpora` (no Neo4j, no full-corpus scan) and stages the result for `test_baseline.py` |
 | `setup_baseline_test_fixture.py` | Builds a local `tmp/queries` + `tmp/corpus` fixture from `data/benchmark/credit`, mimicking what a server supplies at request time |
 | `test_baseline.py` | Minimal smoke test: builds a fake `config` (`SimpleNamespace`) and calls `AutoFeatBaseline.run(config)` |
 | `src/feature_discovery/autofeat_pipeline/autofeat.py` | `AutoFeat` — BFS traversal over join paths (`streaming_feature_selection`), core ranking/state (`ranking`, `partial_join_selected_features`) |
@@ -42,8 +43,29 @@ No Neo4j, no Java/Valentine, no data ingestion step is required to run or test `
 | `connections_csv_path` | no | Override for the join-paths CSV path (defaults to `queries_dir/base_table/join_paths.csv`) |
 | `base_table_sep` | no | Base table's own CSV separator (default `,`); the lake corpus is always read as `,`, matching the ARDA baseline |
 
-`join_paths.csv` is always supplied externally (precomputed via Blend) — there is no in-process join-path
-discovery fallback.
+`join_paths.csv` is always supplied externally (precomputed via Blend) — `baseline.py` has no in-process
+discovery fallback. If you don't have one yet for a given base table, use `discover_join_paths.py` (below) to
+generate one.
+
+## Generating `join_paths.csv` with `discover_join_paths.py`
+
+For a base table with no precomputed `join_paths.csv`, this script Valentine schema-matches it against up to
+`--limit` candidate tables under `--corpora` (bounding the cost up front, unlike `test_baseline.py --limit` which
+only bounds traversal *after* `join_paths.csv` exists) and writes a `join_paths.csv` + staged corpus that
+`test_baseline.py` can run against directly — no Neo4j involved.
+
+```bash
+python discover_join_paths.py \
+    --corpora ~/data/corpora/open_data/joinable_tables/ --limit 5 \
+    --input ~/data/corpora/open_data/joinable_tables/nyc/nyc-finance-39g5-gbp3/table.csv \
+    --query_column agency_name --target_column total_current_budget_amount
+```
+
+It walks `--corpora` recursively for `*.csv` files (up to `--limit`), uses each candidate's parent folder name as
+its table id (matching layouts like `.../nyc-finance-39g5-gbp3/table.csv`), keeps Valentine matches on
+`--query_column` above `--threshold` (default `0.55`), and prints the exact `test_baseline.py` command to run
+against the result. Table/column ids containing dashes (e.g. `nyc-finance-39g5-gbp3`) are handled correctly —
+see the join-path name encoding note below.
 
 ## How `baseline.py` works
 
@@ -61,6 +83,11 @@ discovery fallback.
    base table itself, return it as-is — no join needed.
 6. **Materialize the winning join** (`resolve_path_list` + `join_from_path`) and return the base table joined
    with the selected features from that path as a `polars.DataFrame`.
+
+Join paths are internally named by chaining hops together (`join_path_utils.compute_join_name`). Table/column ids
+from real corpora often contain dashes (Socrata-style ids like `nyc-finance-39g5-gbp3`), so the encoding uses
+non-printable separators (`\x1e` between hops, `\x1f` between fields) rather than `"-"`/`"--"`, which would
+otherwise misparse such ids.
 
 ## Server-side testing
 
