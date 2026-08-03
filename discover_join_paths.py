@@ -29,6 +29,7 @@ def parse_args():
     parser.add_argument("--target_column", required=True, help="Base table target/label column")
     parser.add_argument("--limit", type=int, default=20, help="Max number of candidate tables to schema-match against")
     parser.add_argument("--threshold", type=float, default=0.55, help="Minimum Valentine similarity to accept a match")
+    parser.add_argument("--sample-rows", type=int, default=5000, help="Rows read from each table (base + candidates) for schema matching; keeps matching cheap on multi-million-row tables")
     parser.add_argument("--base-table-id", default=None, help="Id for the base table (default: --input's parent folder name)")
     parser.add_argument("--queries-dir", default="tmp/queries", help="Where to stage <base_table>/ (base table CSV + join_paths.csv)")
     parser.add_argument("--data-dir", default="tmp/corpus", help="Where to stage the matched lake tables")
@@ -55,7 +56,9 @@ def main():
     corpora_dir = Path(args.corpora).expanduser()
     base_table_id = args.base_table_id or table_id_for(input_path)
 
-    base_df = pd.read_csv(input_path, encoding="utf8")
+    # A row sample is enough for schema matching (column names + a representative slice of values) and
+    # avoids reading full multi-million-row tables just to compare column types/overlap.
+    base_df = pd.read_csv(input_path, encoding="utf8", nrows=args.sample_rows)
     if args.query_column not in base_df.columns:
         raise ValueError(f"--query_column {args.query_column!r} not found in {input_path} (columns: {list(base_df.columns)})")
     if args.target_column not in base_df.columns:
@@ -69,7 +72,7 @@ def main():
     for candidate_path in candidates:
         candidate_id = table_id_for(candidate_path)
         try:
-            candidate_df = pd.read_csv(candidate_path, encoding="utf8")
+            candidate_df = pd.read_csv(candidate_path, encoding="utf8", nrows=args.sample_rows)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 match_result = valentine_match(base_df, candidate_df, Coma(strategy="COMA_OPT"))

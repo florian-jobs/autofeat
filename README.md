@@ -71,6 +71,10 @@ If nothing matches, add `--verbose` to see each candidate's best similarity for 
 below `--threshold` — useful for telling apart "no real join partner in this sample" from "just needs a lower
 `--threshold`".
 
+Matching only reads `--sample-rows` rows (default `5000`) from the base table and each candidate — schema
+matching needs a representative slice of values, not the whole file, and corpus tables can be multi-million-row.
+The full files are still copied/joined once a table is actually selected; only the discovery step is sampled.
+
 ## How `baseline.py` works
 
 `AutoFeatBaseline.run(config)` does, in order:
