@@ -15,7 +15,7 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | `test_baseline.py` | Minimal smoke test: builds a fake `config` (`SimpleNamespace`) and calls `AutoFeatBaseline.run(config)` |
 | `src/feature_discovery/autofeat_pipeline/autofeat.py` | `AutoFeat` — BFS traversal over join paths (`streaming_feature_selection`), core ranking/state (`ranking`, `partial_join_selected_features`) |
 | `src/feature_discovery/autofeat_pipeline/join_path_utils.py` | Join-path name encoding/decoding, path length |
-| `src/feature_discovery/experiments/evaluate_join_paths.py` | `resolve_path_list`, `join_from_path`, `evaluate_paths` — turns a ranked join path into an actual joined DataFrame |
+| `src/feature_discovery/experiments/evaluate_join_paths.py` | `resolve_path_list`/`build_hop_list`, `join_from_path`, `evaluate_paths` — turns a ranked join path into an actual joined DataFrame |
 | `src/feature_discovery/graph_processing/neo4j_transactions.py` | Neo4j-free graph simulation over `join_paths_df`, plus the raw-CSV read cache (`get_df_with_prefix`) |
 | `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end |
 
@@ -90,14 +90,40 @@ None of `test_baseline.py`'s paths are hardcoded — they're CLI flags, falling 
 | `--limit` | none (full graph) | Max number of lake tables to traverse from the base table, BFS-bounded over `join_paths.csv`. Use this against a large corpus (e.g. 60GB) to sample a bounded subgraph instead of scanning it all |
 
 To test against a real server layout (an actual `corpora/`/`queries/` directory tree), just point these at it —
-no code or fixture-building step required:
-
-```bash
-python test_baseline.py --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake \
-    --base-table my_table --limit 20
-```
+no code or fixture-building step required.
 
 `--limit` works by walking `join_paths.csv` from the base table outward (BFS over `from_id`/`to_id`) and writing
 a temporary join-paths file restricted to the first `limit` tables reached, passed to `baseline.py` via its
 existing `connections_csv_path` override — no change to `baseline.py` itself. It bounds *which* lake tables can be
 read, not how much of any single table is read.
+
+### Examples
+
+```bash
+# 1. Local fixture, defaults (classification on the credit dataset)
+python setup_baseline_test_fixture.py
+python test_baseline.py
+
+# 2. Local fixture, explicit flags (equivalent to the defaults above)
+python test_baseline.py \
+    --queries-dir tmp/queries --data-dir tmp/corpus --corpus credit_lake \
+    --base-table credit --target-column-id 0 --downstream-task classification
+
+# 3. Regression task, numeric target in a different column
+# (requires a fixture for that base table first — setup_baseline_test_fixture.py only
+#  builds the "credit" one; point --queries-dir/--data-dir at your own tmp/queries/<table>
+#  + tmp/corpus/<table>_lake, or adapt setup_baseline_test_fixture.py's SOURCE)
+python test_baseline.py --base-table steel --target-column-id 3 --downstream-task regression
+
+# 4. Real server layout, unbounded (small/known corpus)
+python test_baseline.py \
+    --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake --base-table my_table
+
+# 5. Real server layout, bounded traversal (large corpus, e.g. 60GB)
+python test_baseline.py \
+    --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake --base-table my_table \
+    --limit 20
+```
+
+A successful run prints the augmented `polars.DataFrame` and exits 0; a failure raises a `ValueError` naming the
+missing config field, unresolved base table, or failed join.
