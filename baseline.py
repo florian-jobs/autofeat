@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Optional
 
 import pandas as pd
 import polars as pl
 
 from feature_discovery.autofeat_pipeline.autofeat import AutoFeat
 from feature_discovery.autofeat_pipeline.join_path_utils import get_path_length
-from feature_discovery.experiments.ablation import load_join_paths
 from feature_discovery.experiments.dataset_object import CLASSIFICATION, REGRESSION
 from feature_discovery.experiments.evaluate_join_paths import join_from_path, resolve_path_list
 from feature_discovery.graph_processing.neo4j_transactions import clear_df_cache
@@ -33,6 +31,7 @@ class AutoFeatBaseline:
         except ImportError:
             read_base_table = None
 
+        # read base table with beluga if possible
         if read_base_table is not None:
             polars_df = read_base_table(config.base_table, table_dir, config)
             return polars_df.to_pandas()
@@ -68,6 +67,7 @@ class AutoFeatBaseline:
         if config.data_dir is None:
             raise ValueError("config.data_dir must be set (external lake corpus location)")
 
+        # extract relevant config parameters from veluga config
         table_dir = Path(config.queries_dir) / config.base_table
         lake_data_folder = Path(config.data_dir) / config.corpus
         base_table_sep = getattr(config, "base_table_sep", ",")
@@ -81,7 +81,14 @@ class AutoFeatBaseline:
             target_column = base_table_df.columns[-1]
 
         downstream_task = getattr(config, "downstream_task", "classification")
+        if downstream_task not in ("classification", "regression"):
+            raise ValueError(
+                f"downstream_task {downstream_task!r} not supported by AutoFeat: use 'classification' or 'regression'"
+            )
         dataset_type = REGRESSION if downstream_task == "regression" else CLASSIFICATION
+
+        if downstream_task == "regression" and not pd.api.types.is_numeric_dtype(base_table_df[target_column]):
+            raise ValueError(f"Target column ({target_column!r}) not numeric")
 
         # The rest of this pipeline (resolve_path_list in particular) assumes
         # every node id ends in ".csv" when reconstructing table names from
@@ -94,10 +101,7 @@ class AutoFeatBaseline:
         base_table_df.to_csv(lake_data_folder / base_table_id, index=False, sep=base_table_sep)
 
         join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
-        if Path(join_paths_df_path).exists():
-            join_paths_df = pd.read_csv(join_paths_df_path)
-        else:
-            join_paths_df = load_join_paths(str(lake_data_folder / "connections.csv"))
+        join_paths_df = pd.read_csv(join_paths_df_path)
 
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
@@ -123,7 +127,7 @@ class AutoFeatBaseline:
             bfs_traversal.streaming_feature_selection(
                 join_paths_df=join_paths_df,
                 lake_data_folder=str(lake_data_folder),
-                lake_table_sep=base_table_sep,
+                lake_table_sep=",",
                 queue={base_table_id},
             )
 
@@ -131,7 +135,7 @@ class AutoFeatBaseline:
                 bfs_traversal.ranking.items(),
                 key=lambda r: (-float(r[1]), get_path_length(r[0]), r[0]),
             )
-            join_name, rank = sorted_paths[0]
+            join_name, _rank = sorted_paths[0]
 
             if join_name == bfs_traversal.base_table_id:
                 return pl.from_pandas(base_table_df)
@@ -141,7 +145,7 @@ class AutoFeatBaseline:
                 path_list,
                 join_paths_df,
                 str(lake_data_folder),
-                base_table_sep,
+                ",",
                 base_table_sep,
                 bfs_traversal.base_table_id,
                 bfs_traversal.target_column,
@@ -150,9 +154,10 @@ class AutoFeatBaseline:
         if dataframe is None:
             raise ValueError(f"Join failed for path: {join_name}")
 
-        features = list(set(features).intersection(set(dataframe.columns)))
+        dataframe_columns = set(dataframe.columns)
+        features = list(dict.fromkeys(f for f in features if f in dataframe_columns))
         if len(features) < 2:
-            features = bfs_traversal.partial_join_selected_features[bfs_traversal.base_table_id]
+            features = list(bfs_traversal.partial_join_selected_features[bfs_traversal.base_table_id])
             features.append(bfs_traversal.target_column)
 
         return pl.from_pandas(dataframe[features])

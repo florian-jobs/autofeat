@@ -23,33 +23,49 @@ except ImportError:
     pass
 
 def resolve_path_list(bfs_result: AutoFeat, join_name: str):
-    features = bfs_result.partial_join_selected_features[join_name]
+    features = list(bfs_result.partial_join_selected_features[join_name])
     features.append(bfs_result.target_column)
     features.extend(bfs_result.partial_join_selected_features[bfs_result.base_table_id])  # base features
     logging.debug(f"Feature before join_key removal:\n{features}")
     # features = list((set(features) - set(bfs_result.join_keys[join_name])).intersection(set(dataframe.columns)))
     # logging.debug(f"Feature after join_key removal:\n{features}")
 
-    features_tables = [f"{feat.split('.csv')[0]}.csv" for feat in features]
-    features_tables.sort()
-    features_tables = set(features_tables)
+    features_tables = sorted({f"{feat.split('.csv')[0]}.csv" for feat in features})
 
+    # to_table -> (from_table, from_column, to_column, to_table), one entry per hop in the join path
     path_tables = {}
     for p in join_name.split("--"):
         aux = p.split("-")
         if len(aux) == 4:
             path_tables[aux[3]] = (aux[0], aux[1], aux[2], aux[3])
 
-    path_list = []
-    for table in features_tables:
-        if table in path_list:
-            continue
-        path_aux = create_join_tree(table, path_tables)
-        # if not (type(path_aux) is list) and (path_aux not in path_tables.keys()):
-        #     continue
-        path_list.append(path_aux)
+    path_list = build_hop_list(features_tables, path_tables)
 
     return path_list, features
+
+
+def build_hop_list(tables, path_tables):
+    """
+    Resolve an ordered, deduplicated list of join hops (from_table, from_column, to_column, to_table)
+    needed to reach every table in `tables`, starting from the base table. Hops are ordered so that
+    a hop's `from_table` has always already been joined (or is the base table) by the time it's applied.
+    """
+    hops = []
+    seen_tables = set()
+    for table in tables:
+        chain = []
+        node = table
+        while node in path_tables:
+            hop = path_tables[node]
+            chain.append(hop)
+            node = hop[0]
+        chain.reverse()  # root (nearest the base table) first
+        for hop in chain:
+            to_table = hop[3]
+            if to_table not in seen_tables:
+                hops.append(hop)
+                seen_tables.add(to_table)
+    return hops
 
 def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join_paths_df: pd.DataFrame,
                    lake_data_folder: str, lake_table_sep: str, base_table_sep: str, top_k_paths: int = 15,
@@ -97,10 +113,11 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
         if dataframe is None:
             continue
 
-        features = list(set(features).intersection(set(dataframe.columns)))
+        dataframe_columns = set(dataframe.columns)
+        features = list(dict.fromkeys(f for f in features if f in dataframe_columns))
 
         if len(features) < 2:
-            features = bfs_result.partial_join_selected_features[bfs_result.base_table_id]
+            features = list(bfs_result.partial_join_selected_features[bfs_result.base_table_id])
             features.append(bfs_result.target_column)
 
         results, _ = evaluate_all_algorithms(dataframe=dataframe[features],
@@ -134,73 +151,55 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
 
     return all_results, top_k_path_list, selected_features
 
-def join_from_path(path: list[str], join_paths_df, lake_data_folder: str, lake_table_sep: str, base_table_sep: str,
+def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake_table_sep: str, base_table_sep: str,
                    base_node: str, target: str = None):
-    step = 3
-    joined_df = None
-    path.remove(base_node)
-    left_table, _ = get_df_with_prefix(
+    """
+    `path` is an ordered list of (from_table, from_column, to_column, to_table) hops, as produced by
+    `build_hop_list`. Each hop's `from_table` is either `base_node` or a table joined by an earlier hop.
+    """
+    joined_df, _ = get_df_with_prefix(
         join_paths_df,
         lake_data_folder,
         base_node,
         base_table_sep,
         target
     )
-    for p in path:
+
+    for from_table, from_column, to_column, to_table in path:
         try:
-            right_table, _ = get_df_with_prefix(join_paths_df, lake_data_folder, p, lake_table_sep)
-            to_column = join_paths_df[
-                join_paths_df['to_id'] == p
-                ]['to_column'].values[0]
-            left_on = join_paths_df[
-                join_paths_df['from_id'] == base_node
-                ]['from_column'].values[0]
+            right_table, _ = get_df_with_prefix(join_paths_df, lake_data_folder, to_table, lake_table_sep)
 
             # Resolve placeholder column names (col_0, col_1, etc.) to actual column names
             if to_column.startswith('col_'):
                 try:
                     col_index = int(to_column.split('_')[1])
-                    actual_columns = [col.replace(f"{p}.", "", 1) for col in right_table.columns if
-                                      col.startswith(f"{p}.")]
+                    actual_columns = [col.replace(f"{to_table}.", "", 1) for col in right_table.columns if
+                                      col.startswith(f"{to_table}.")]
                     if col_index < len(actual_columns):
                         to_column = actual_columns[col_index]
                 except (ValueError, IndexError):
                     pass
 
-            if left_on.startswith('col_'):
+            if from_column.startswith('col_'):
                 try:
-                    col_index = int(left_on.split('_')[1])
-                    actual_columns = [col.replace(f"{base_node}.", "", 1) for col in left_table.columns if
-                                      col.startswith(f"{base_node}.")]
+                    col_index = int(from_column.split('_')[1])
+                    actual_columns = [col.replace(f"{from_table}.", "", 1) for col in joined_df.columns if
+                                      col.startswith(f"{from_table}.")]
                     if col_index < len(actual_columns):
-                        left_on = actual_columns[col_index]
+                        from_column = actual_columns[col_index]
                 except (ValueError, IndexError):
                     pass
 
-            right_table = right_table.groupby(f'{p}.{to_column}').sample(n=1, random_state=42)
+            right_table = right_table.groupby(f'{to_table}.{to_column}').sample(n=1, random_state=42)
 
             joined_df = pd.merge(
-                left_table,
+                joined_df,
                 right_table,
                 how="left",
-                left_on=f'{base_node}.{left_on}',
-                right_on=f'{p}.{to_column}'
+                left_on=f'{from_table}.{from_column}',
+                right_on=f'{to_table}.{to_column}'
             )
-        except Exception as e:
+        except Exception:
             continue
 
     return joined_df
-
-def create_join_tree(table, path_tables):
-    if table in path_tables.keys():
-        value = path_tables[table]
-        result = create_join_tree(value[0], path_tables)
-        if type(result) is not list:
-            result = [result]
-
-        result.append(value[1])
-        result.append(value[2])
-        result.append(value[3])
-        return result
-
-    return table

@@ -69,7 +69,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs/
 
 # PyBuilder
 target/
@@ -154,6 +154,7 @@ dmypy.json
 /src/feature_discovery/**/AutogluonModels/*
 
 neo4j-data/
+neo4j-db/
 paths_*.csv
 tfd/*
 *nohup*.out
@@ -161,3 +162,6 @@ tfd/*
 #etc
 notes.txt
 tmp/
+.claude/
+assets/
+data/

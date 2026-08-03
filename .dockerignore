@@ -1,9 +1,0 @@
-neo4j-data/
-neo4j-db/
-data/
-results/
-.git/
-vendor/*/build/
-vendor/*/*.egg-info/
-__pycache__/
-*.pyc

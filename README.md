@@ -1,239 +1,103 @@
 # AutoFeat: Transitive Feature Discovery over Join Paths
-This repo contains the development and experimental codebase of [AutoFeat: Transitive Feature Discovery over Join Paths](ICDE_FeatureDiscovery.pdf)
 
+Codebase for [AutoFeat: Transitive Feature Discovery over Join Paths](ICDE_FeatureDiscovery.pdf), reworked to run
+without a live Neo4j instance. All graph lookups (`get_adjacent_nodes`, `get_node_by_id`,
+`get_relation_properties_node_name`, ...) are now simulated in-process over a `join_paths.csv` DataFrame — see
+`src/feature_discovery/graph_processing/neo4j_transactions.py`. Neo4j is only still needed by the legacy
+thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the baseline adapter below.
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.8.2-blue.svg)](https://www.python.org/downloads/release/python-380/)
-[![pip](https://img.shields.io/badge/pip-20.0.2-blue.svg)](https://pypi.org/project/pip/)
-[![Neo4j Desktop](https://img.shields.io/badge/neo4jDesktop-1.4.10-blue.svg)](https://pypi.org/project/pip/)
+## Repository layout
 
+| Path | Role |
+| --- | --- |
+| `baseline.py` | `AutoFeatBaseline` — the integration adapter. Duck-typed `run(config) -> polars.DataFrame`, same shape as the sibling `QCRBaseline`/`ARDABaseline` |
+| `setup_baseline_test_fixture.py` | Builds a local `tmp/queries` + `tmp/corpus` fixture from `data/benchmark/credit`, mimicking what a server supplies at request time |
+| `test_baseline.py` | Minimal smoke test: builds a fake `config` (`SimpleNamespace`) and calls `AutoFeatBaseline.run(config)` |
+| `src/feature_discovery/autofeat_pipeline/autofeat.py` | `AutoFeat` — BFS traversal over join paths (`streaming_feature_selection`), core ranking/state (`ranking`, `partial_join_selected_features`) |
+| `src/feature_discovery/autofeat_pipeline/join_path_utils.py` | Join-path name encoding/decoding, path length |
+| `src/feature_discovery/experiments/evaluate_join_paths.py` | `resolve_path_list`, `join_from_path`, `evaluate_paths` — turns a ranked join path into an actual joined DataFrame |
+| `src/feature_discovery/graph_processing/neo4j_transactions.py` | Neo4j-free graph simulation over `join_paths_df`, plus the raw-CSV read cache (`get_df_with_prefix`) |
+| `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end |
 
-# 1. Development 
-The code is available for local development, or using Docker. 
-
-## Local development
-
-### Requirements
-- Python 3.8
-- Java (for data discovery only - [Valentine](https://github.com/delftdata/valentine))
-- neo4j 5.1.0 or 5.3.0
-
-### Python setup 
-
-1. Create virtual environment
-
-`python -m venv {env-name}`
-
-2. Activate environment 
-
-`source {env-name}/bin/activate`
-
-3. Install requirements 
-
-`pip install -e .`
-
-#### Fix libomp
-LighGBM on AutoGluon [gives Segmentation Fault](https://github.com/autogluon/autogluon/issues/1442) or won't run unless you install the corret libomp 
-as described [here](https://github.com/autogluon/autogluon/pull/1453/files). 
-Steps: 
-```
-wget https://raw.githubusercontent.com/Homebrew/homebrew-core/fb8323f2b170bd4ae97e1bac9bf3e2983af3fdb0/Formula/libomp.rb
-brew uninstall libomp
-brew install libomp.rb
-rm libomp.rb
-```
-
-### Neo4j Desktop setup
-Working with neo4j is easier using neo4j desktop application. 
-1. First, download [neo4j Desktop](https://neo4j.com/download/)
-2. Open the app
-   1. "Add" > "Local DBMS"
-   ![neo4j-create-dbms.png](assets%2Fneo4j-create-dbms.png)
-   2. Give a name to the DBMS, add a password, and choose Version 5.1.0. 
-   ![neo4j-create-db.png](assets%2Fneo4j-create-db.png)
-   3. Change the "password" in [config](src/feature_discovery/config.py)
-`NEO4J_PASS = os.getenv("NEO4J_PASS", "password")`
-   3. "Start" the DBMS
-   ![neo4j-open-database.png](assets%2Fneo4j-open-database.png)
-   4. Once it started, "Open"
-   ![neo4j-browser-open.png](assets%2Fneo4j-browser-open.png)
-   5. Now you can see the neo4j browser, where you can query the database or create new ones, as we will do in the next steps. 
-
-
-## Docker
-The Docker image already contains all the necesarry for development.
-
-1. Open a terminal and go to the project root (where the docker-compose.yml is located). 
-2. Build necessary Docker containers (Note: This step takes a while)
-``` bash
-   docker-compose up -d --build
-```
-
-# 2. Data setup
-1. [Download](https://zenodo.org/records/12755408) our experimental datasets from Zenodo and put them in [data/benchmark](data/benchmark). You can see in Zenodo the same structure for the project. 
-
-To ingest the data in the local development, it is necessary to follow the steps from [Neo4j Desktop setup](#neo4j-desktop-setup) beforehand.
-
-For Docker, Neo4j browser is available at [localhost:7474](localhost:7474). No user or password is required.
-
-
-
-## Benchmark setting
-
-1. Create database `benchmark` in neo4j.
-   1. Local development - It is necessary to follow the steps from [Neo4j Desktop setup](#neo4j-desktop-setup) beforehand.
-   2. Docker - Go to [localhost:7474](localhost:7474) to access neo4j browser.
-
-Input in neo4j browser console: 
-![neo4j-console.png](assets%2Fneo4j-console.png)
-
-```
-create database benchmark 
-```
-Wait 1 minute until the database becomes available.
-```
-:use benchmark
-```
-2. Ingest data
-
--  (Docker) Bash into container 
-```bash
-   docker exec -it feature-discovery-runner /bin/bash
-```
--  (Local development) Open a terminal and go to the project root. 
-
-- Ingest the data using the following command:
+## Setup
 
 ```bash
- feature-discovery-cli ingest-kfk-data
+pip install -e .
 ```
 
+No Neo4j, no Java/Valentine, no data ingestion step is required to run or test `baseline.py`.
 
-## Data Lake setting
-1. Go to [config.py](src/feature_discovery/config.py) and set `NEO4J_DATABASE = 'lake'`
-   2. If Docker is running, restart it. 
-2. Create database `lake` in neo4j:
-   1. Local development - It is necessary to follow the steps from [Neo4j Desktop setup](#neo4j-desktop-setup) beforehand.
-   2. Docker - Go to [localhost:7474](localhost:7474) to access neo4j browser.
+## The `baseline.py` contract
 
-Input in neo4j browser console: 
-![neo4j-console.png](assets%2Fneo4j-console.png)
+`AutoFeatBaseline.run(config)` expects a duck-typed config object (the eventual
+`beluga.config.schema.Config`) with:
 
-```
-create database lake
-```
-Wait 1 minute until the database becomes available.
-```
-:use lake
-```  
-3. Ingest data - depending on how many cores you have, this step can take up to 1-2h.
+| Attribute | Required | Meaning |
+| --- | --- | --- |
+| `base_table` | yes | Table id, e.g. `"credit"` (directory name under `queries_dir`, no `.csv`) |
+| `queries_dir` | yes | Directory containing `<base_table>/` with the base table CSV and `join_paths.csv` |
+| `data_dir`, `corpus` | yes | Location of the external lake corpus (`data_dir/corpus/*.csv`) |
+| `target_column_id` | no | Column index of the label; defaults to the last column |
+| `downstream_task` | no | `"classification"` or `"regression"` (default `"classification"`); anything else raises |
+| `connections_csv_path` | no | Override for the join-paths CSV path (defaults to `queries_dir/base_table/join_paths.csv`) |
+| `base_table_sep` | no | Base table's own CSV separator (default `,`); the lake corpus is always read as `,`, matching the ARDA baseline |
 
--  (Docker) Bash into container 
+`join_paths.csv` is always supplied externally (precomputed via Blend) — there is no in-process join-path
+discovery fallback.
+
+## How `baseline.py` works
+
+`AutoFeatBaseline.run(config)` does, in order:
+
+1. **Read the base table** (`_read_base_table`) — via `beluga.online.base_table.read_base_table` if importable,
+   else a local CSV fallback (dev/testing only).
+2. **Validate** `target_column_id`/`downstream_task`, and that a regression target is numeric.
+3. **Materialize the base table into the lake folder** as `<base_table>.csv`, so it's addressable as just another
+   node during traversal (`base_table_id = config.base_table + ".csv"`).
+4. **Run `AutoFeat.streaming_feature_selection`** — BFS over `join_paths.csv` starting from the base table,
+   scoring every reachable join path and caching each path's selected features in
+   `partial_join_selected_features`.
+5. **Pick the best-ranked path** (`bfs_traversal.ranking`, tie-broken by shortest path then name). If that's the
+   base table itself, return it as-is — no join needed.
+6. **Materialize the winning join** (`resolve_path_list` + `join_from_path`) and return the base table joined
+   with the selected features from that path as a `polars.DataFrame`.
+
+## Server-side testing
+
+Since there is no real `beluga` package in this checkout yet, testing the adapter means faking what the server
+would hand it: a base table directory, a `join_paths.csv`, and a lake corpus directory.
+
 ```bash
-   docker exec -it feature-discovery-runner /bin/bash
-```
--  (Local development) Open a terminal and go to the project root. 
-
-- Ingest the data using the following command:
-
-```
-feature-discovery-cli ingest-data --data-discovery-threshold=0.55 --discover-connections-data-lake
+python setup_baseline_test_fixture.py   # materializes tmp/queries/credit and tmp/corpus/credit_lake
+python test_baseline.py                 # runs AutoFeatBaseline.run(config) against that fixture
 ```
 
+`test_baseline.py` builds `config` as a plain `SimpleNamespace` rather than importing `beluga.config.schema.Config`
+— `baseline.py` never imports `beluga` directly (see the `try/except ImportError` in `_read_base_table`), so this
+is a faithful stand-in for how the real harness will call it. A successful run prints the augmented `polars.DataFrame`
+(base table columns + selected joined features).
 
-# 3. Experiments
+None of `test_baseline.py`'s paths are hardcoded — they're CLI flags, falling back to the local fixture above:
 
-To run the experiments in Docker, first bash into the container: 
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--queries-dir` | `tmp/queries` | Queries directory (contains `<base_table>/` with the base table CSV + `join_paths.csv`) |
+| `--data-dir` | `tmp/corpus` | Directory containing the lake corpus |
+| `--corpus` | `credit_lake` | Corpus subfolder name under `--data-dir` |
+| `--base-table` | `credit` | Base table id |
+| `--target-column-id` | `0` | Target column index |
+| `--downstream-task` | `classification` | `classification` or `regression` |
+| `--limit` | none (full graph) | Max number of lake tables to traverse from the base table, BFS-bounded over `join_paths.csv`. Use this against a large corpus (e.g. 60GB) to sample a bounded subgraph instead of scanning it all |
+
+To test against a real server layout (an actual `corpora/`/`queries/` directory tree), just point these at it —
+no code or fixture-building step required:
+
 ```bash
-   docker exec -it feature-discovery-runner /bin/bash
+python test_baseline.py --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake \
+    --base-table my_table --limit 20
 ```
 
-## Run AutoFeat
-`feature-discovery-cli --help` will show the commands for running experiments: 
-
-1. `run-all` Runs all experiments (ARDA + base + AutoFeat).
-
-` feature-discovery-cli run-all --help ` will show you the parameters needed for running 
-
-2. `run-arda` Runs the ARDA experiments
-
-` feature-discovery-cli run-arda --help ` will show you the parameters needed for running 
-
-`--dataset-labels` has to be the label of one of the datasets from `datasets.csv` file which resides in [data/benchmark](data/benchmark).
-
-`--results-file` by default the experiments are saved as CSV with a predefined filename in [results](/results)
-
-Example:
-
-`feature-discovery-cli run-arda --dataset-labels steel` Will run the experiments on the _steel_ dataset and the results 
-are saved in [results folder](results)
-
-
-3. `run-base` Runs the base experiments
-
-` feature-discovery-cli run-base --help ` will show you the parameters needed for running 
-
-`--dataset-labels` has to be the label of one of the datasets from `datasets.csv` file which resides in [data/benchmark](data/benchmark).
-
-`--results-file` by default the experiments are saved as CSV with a predefined filename.
-
-Example: 
-
-`feature-discovery-cli run-base --dataset-labels steel` Will run the experiments on the _steel_ dataset and the results 
-are saved in [results folder](results)
-
-4. `run-tfd` Runs the AutoFeat experiments.   
-
-` feature-discovery-cli run-tfd --help ` will show you the parameters needed for running 
-
-`--dataset-labels` has to be the label of one of the datasets from `datasets.csv` file which resides in [data/benchmark](data/benchmark).
-
-`--results-file` by default the experiments are saved as CSV with a predefined filename.
-
-`--value-ratio` one of the hyper-parameters of our approach, it represents a data quality metric - the percentage of 
-null values allowed in the datasets. Default: 0.55
-
-`--top-k` one of the hyper-parameters of our approach, 
-it represents the number of features to select from each dataset and the number of paths. Default: 15 
-
-Example: 
-
-`feature-discovery-cli run-tfd --dataset-labels steel` Will run the experiments on the _steel_ 
-dataset and the results are saved in [results folder](results)
-
-## Datasets 
-
-Main [source](https://huggingface.co/datasets/inria-soda/tabular-benchmark#source-data) for finding datasets.
-
-| Dataset Label | Source | Processing strategy | 
-| ------------- | ------ | --------- | 
-| [jannis](data/jannis) | [openml](https://www.openml.org/search?type=data&sort=runs&id=45021&status=active) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) | 
-| [MiniBooNe](data/miniboone) | [openml](https://www.openml.org/search?type=data&sort=runs&id=44128&status=active) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) | 
-| [covertype](data/covertype) | [openml](https://www.openml.org/search?type=data&sort=runs&id=44159&status=active) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) | 
-| [EyeMovement](data/eyemove) | [openml](https://www.openml.org/search?type=data&sort=runs&id=44157&status=active) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) |
-| [Bioresponse](data/bioresponse) | [openml](https://www.openml.org/search?type=data&sort=runs&id=45019&status=active) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) | 
-| [school](data/school) | [ARDA Paper](http://www.vldb.org/pvldb/vol13/p1373-chepurko.pdf) | None | 
-| [steel](data/steel) | [openml](https://www.openml.org/search?type=data&sort=runs&status=active&qualities.NumberOfClasses=%3D_2&id=1504) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) |
-| [credit](data/credit) | [openml](https://www.openml.org/search?type=data&sort=runs&status=active&qualities.NumberOfClasses=%3D_2&id=31) | [short_reverse_correlation](https://github.com/kirilvasilev16/PythonTableDivider) |
-
-## Plots
-
-1. To recreate our plots, first download the results from [here](https://surfdrive.surf.nl/files/index.php/s/fIhQNikpFbemozv).
-2. Add the results in the [results](results) folder.
- 
-2. Then, open the jupyter notebook: run in the root folder of the project: 
-```bash
-jupyter notebook
-```
-
-2. Open the file [Visualisations.ipynb](Visualisations.ipynb).
-3. Run every cell. 
-
-# 4. Empirical analysis of feature selection strategies
-
-We conducted an empirical analysis of the most popular feature selection 
-strategies based on relevance and redundancy.
-
-These experiments are documented at: https://github.com/delftdata/bsc_research_project_q4_2023/tree/main/autofeat_experimental_analysis 
-
-### Maintainer
-This repository is created and maintained by [Andra Ionescu](https://andraionescu.github.io)
+`--limit` works by walking `join_paths.csv` from the base table outward (BFS over `from_id`/`to_id`) and writing
+a temporary join-paths file restricted to the first `limit` tables reached, passed to `baseline.py` via its
+existing `connections_csv_path` override — no change to `baseline.py` itself. It bounds *which* lake tables can be
+read, not how much of any single table is read.
