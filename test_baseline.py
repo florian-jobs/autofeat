@@ -1,5 +1,4 @@
 import argparse
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -28,8 +27,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def build_limited_join_paths(join_paths_path: Path, base_table_id: str, limit: int) -> Path:
-    """Write a copy of join_paths.csv restricted to a BFS-bounded subgraph of at most `limit` tables."""
+def build_limited_join_paths(join_paths_path: Path, queries_dir: Path, base_table_id: str, limit: int) -> Path:
+    """Write a copy of join_paths.csv restricted to a BFS-bounded subgraph of at most `limit` tables.
+
+    Written under `queries_dir` itself (a sibling of <base_table>/, not inside it) rather than the
+    system temp dir, so nothing leaves the directory tree the caller pointed --queries-dir at.
+    """
     join_paths_df = pd.read_csv(join_paths_path)
 
     visited = {base_table_id}
@@ -45,7 +48,8 @@ def build_limited_join_paths(join_paths_path: Path, base_table_id: str, limit: i
     limited_df = join_paths_df[
         join_paths_df["from_id"].isin(visited) & join_paths_df["to_id"].isin(visited)
     ]
-    limited_path = Path(tempfile.gettempdir()) / f"join_paths_limit_{limit}.csv"
+    queries_dir.mkdir(parents=True, exist_ok=True)
+    limited_path = queries_dir / f"_join_paths_limit_{limit}.csv"
     limited_df.to_csv(limited_path, index=False)
     print(f"Limited join graph to {len(visited)} tables ({len(limited_df)} of {len(join_paths_df)} edges) -> {limited_path}")
     return limited_path
@@ -64,9 +68,10 @@ def main():
     )
 
     if args.limit is not None:
-        join_paths_path = Path(args.queries_dir) / args.base_table / "join_paths.csv"
+        queries_dir = Path(args.queries_dir)
+        join_paths_path = queries_dir / args.base_table / "join_paths.csv"
         base_table_id = args.base_table + ".csv"
-        config.connections_csv_path = str(build_limited_join_paths(join_paths_path, base_table_id, args.limit))
+        config.connections_csv_path = str(build_limited_join_paths(join_paths_path, queries_dir, base_table_id, args.limit))
 
     baseline = AutoFeatBaseline(value_ratio=0.65, top_k=15, algorithm="LR")
     result = baseline.run(config)
