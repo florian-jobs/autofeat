@@ -79,7 +79,14 @@ class AutoFeatBaseline:
             target_column = base_table_df.columns[-1]
 
         downstream_task = getattr(config, "downstream_task", "classification")
+        if downstream_task not in ("classification", "regression"):
+            raise ValueError(
+                f"downstream_task {downstream_task!r} not supported by AutoFeat: use 'classification' or 'regression'"
+            )
         dataset_type = REGRESSION if downstream_task == "regression" else CLASSIFICATION
+
+        if downstream_task == "regression" and not pd.api.types.is_numeric_dtype(base_table_df[target_column]):
+            raise ValueError(f"Target column ({target_column!r}) not numeric")
 
         # The rest of this pipeline (resolve_path_list in particular) assumes
         # every node id ends in ".csv" when reconstructing table names from
