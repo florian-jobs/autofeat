@@ -67,6 +67,10 @@ its table id (matching layouts like `.../nyc-finance-39g5-gbp3/table.csv`), keep
 against the result. Table/column ids containing dashes (e.g. `nyc-finance-39g5-gbp3`) are handled correctly —
 see the join-path name encoding note below.
 
+If nothing matches, add `--verbose` to see each candidate's best similarity for `--query_column` even when it's
+below `--threshold` — useful for telling apart "no real join partner in this sample" from "just needs a lower
+`--threshold`".
+
 ## How `baseline.py` works
 
 `AutoFeatBaseline.run(config)` does, in order:

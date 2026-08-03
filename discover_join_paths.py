@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument("--base-table-id", default=None, help="Id for the base table (default: --input's parent folder name)")
     parser.add_argument("--queries-dir", default="tmp/queries", help="Where to stage <base_table>/ (base table CSV + join_paths.csv)")
     parser.add_argument("--data-dir", default="tmp/corpus", help="Where to stage the matched lake tables")
+    parser.add_argument("--verbose", action="store_true", help="Print each candidate's best --query_column match even if below --threshold")
     return parser.parse_args()
 
 
@@ -77,8 +78,13 @@ def main():
             continue
 
         best = None
+        best_below_threshold = None
         for ((_, col_from), (_, col_to)), similarity in match_result.items():
-            if col_from != args.query_column or similarity < args.threshold:
+            if col_from != args.query_column:
+                continue
+            if best_below_threshold is None or similarity > best_below_threshold[1]:
+                best_below_threshold = (col_to, similarity)
+            if similarity < args.threshold:
                 continue
             if best is None or similarity > best[1]:
                 best = (col_to, similarity)
@@ -87,6 +93,12 @@ def main():
             to_column, similarity = best
             print(f"  match: {candidate_id}.{to_column} (similarity={similarity:.2f})")
             matches.append((candidate_id, candidate_path, to_column, similarity))
+        elif args.verbose:
+            if best_below_threshold is not None:
+                to_column, similarity = best_below_threshold
+                print(f"  no match: {candidate_id} (best for {args.query_column!r} was .{to_column} at similarity={similarity:.2f}, below --threshold {args.threshold})")
+            else:
+                print(f"  no match: {candidate_id} (no candidate column paired with {args.query_column!r} at all)")
 
     if not matches:
         print("No matches found above threshold; no join_paths.csv written.")
