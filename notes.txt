@@ -1,6 +1,0 @@
-1. Datasets used in AutoFeat:
-    For a comprehensive evaluation, we choose six binary classification datasets varying in domains (e.g., medicine,
-    web data, pattern recognition), the ratio of rows to columns,
-    and types of features (e.g., discrete, continuous, nominal, and
-    ordinal). These datasets are sourced from widely-employed
-    ML repositories: OpenML, Kaggle, and UC Irvine1.

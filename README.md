@@ -18,7 +18,8 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | `src/feature_discovery/autofeat_pipeline/join_path_utils.py` | Join-path name encoding/decoding, path length |
 | `src/feature_discovery/experiments/evaluate_join_paths.py` | `resolve_path_list`/`build_hop_list`, `join_from_path`, `evaluate_paths` — turns a ranked join path into an actual joined DataFrame |
 | `src/feature_discovery/graph_processing/neo4j_transactions.py` | Neo4j-free graph simulation over `join_paths_df`, plus the raw-CSV read cache (`get_df_with_prefix`) |
-| `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end |
+| `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end; `--dataset` selects which `data/benchmark/<name>` to run |
+| `build_benchmark_dataset.py` | Splits a single wide CSV (e.g. an OpenML table) into a snowflake-schema benchmark dataset under `data/benchmark/<name>/`, registers it in `datasets.csv` |
 
 ## Setup
 
@@ -115,6 +116,52 @@ Join paths are internally named by chaining hops together (`join_path_utils.comp
 from real corpora often contain dashes (Socrata-style ids like `nyc-finance-39g5-gbp3`), so the encoding uses
 non-printable separators (`\x1e` between hops, `\x1f` between fields) rather than `"-"`/`"--"`, which would
 otherwise misparse such ids.
+
+## Reproducing the paper's numbers with `ablation.py`
+
+Separate from `baseline.py` (the integration adapter), `src/feature_discovery/experiments/ablation.py` runs the
+same AutoFeat pipeline against the paper's own benchmark datasets, for comparing reproduced accuracy against the
+numbers in `docs/assets/papers/ICDE_FeatureDiscovery.pdf` (Table II / Figure 4-7). `data/benchmark/datasets.csv`
+lists the paper's 8 datasets (`credit`, `steel`, `jannis`, `miniboone`, `eyemove`, `bioresponse`, `school`,
+`covertype`); only `credit` ships with this checkout.
+
+```bash
+uv run python src/feature_discovery/experiments/ablation.py --dataset credit
+```
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--dataset` | `credit` | `base_table_label` in `data/benchmark/datasets.csv` |
+| `--value-ratio` | `0.65` | Join-quality pruning threshold (τ in the paper) |
+| `--top-k` | `15` | Max features retained per table (κ in the paper) |
+| `--algorithm` | `LR` | Model passed to `evaluate_all_algorithms` |
+
+Each run writes `results/thesis/<dataset>_AutoFeat.csv` — one row per evaluated join path, with `Result` dataclass
+fields (`accuracy`, `train_time`, `feature_selection_time`, `rank`, `join_path_features`, ...). The paper's own
+defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults above.
+
+**Known-fixed bug:** the BFS traversal used to stop after exactly one hop from the base table on every run,
+regardless of `--top-k` (`autofeat.py`'s recursion guard treated "already seen as a neighbour" as "already fully
+explored," which is trivially always true one level in). This has been fixed — traversal now correctly continues
+into deeper hops. If you're comparing against results generated before this fix, expect them to be lower and
+less deep than what you get now.
+
+Building a new benchmark dataset from scratch — e.g. an OpenML table the paper didn't cover — is a different
+scenario (no ground-truth join graph to match, since you're defining the schema yourself):
+
+```bash
+uv run python build_benchmark_dataset.py \
+    --input path/to/openml_dataset.csv --target-column <label_column> \
+    --name mydataset --num-tables 6 --max-depth 2
+uv run python src/feature_discovery/experiments/ablation.py --dataset mydataset
+```
+
+`build_benchmark_dataset.py` mimics the paper's own "Benchmark Setting" construction (Section VII-A): it
+vertically splits the source table's columns across a random tree of smaller tables, linking them with synthetic
+KFK columns (the same row index copied along each branch) so every join is lossless — the same pattern as the
+shipped `data/benchmark/credit/table_*.csv` + `connections.csv`. It also appends a row to `datasets.csv`
+automatically. Since the split (which columns land where, tree shape) is randomized by `--seed`, results from a
+self-built dataset are a new comparison point, not a reproduction of any paper number.
 
 ## Server-side testing
 

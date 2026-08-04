@@ -92,12 +92,21 @@ def autofeat(
     return all_results, top_k_paths, selected_features
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
+    parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
+    parser.add_argument("--value-ratio", type=float, default=0.65)
+    parser.add_argument("--top-k", type=int, default=15)
+    parser.add_argument("--algorithm", default="LR")
+    args = parser.parse_args()
+
     init_datasets()
-    dataset = filter_datasets(["credit"])[0]
+    dataset = filter_datasets([args.dataset])[0]
     autofeat(dataset,
-             value_ratio=0.65,
-             top_k=15,
-             algorithm="LR",
-             join_paths_df=load_join_paths("data/benchmark/credit/connections.csv"),
-             lake_data_folder="data/benchmark/credit",
+             value_ratio=args.value_ratio,
+             top_k=args.top_k,
+             algorithm=args.algorithm,
+             join_paths_df=load_join_paths(f"data/benchmark/{args.dataset}/connections.csv"),
+             lake_data_folder=f"data/benchmark/{args.dataset}",
              base_table_sep=",")

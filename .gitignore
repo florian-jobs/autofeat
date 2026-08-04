@@ -160,8 +160,12 @@ tfd/*
 *nohup*.out
 
 #etc
-notes.txt
+notes.md
 tmp/
 .claude/
 assets/
 data/
+
+# stray pasted-image files (Claude Code drops clipboard pastes as img.png, img_1.png, ... in cwd)
+img.png
+img_*.png

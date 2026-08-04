@@ -331,7 +331,11 @@ class AutoFeat:
             _iter_idx += 1
             _emit_progress(_iter_idx)
 
-        if not all_neighbours - self.discovered:
+        # `all_neighbours` only ever contains nodes not yet in `self.discovered` at the time
+        # they were added (see the `- set(self.discovered)` filter above), so recursion should
+        # continue whenever there's anything new to expand from; it terminates naturally once a
+        # level finds no new neighbours (the recursive call's own `if len(queue) == 0` guard).
+        if not all_neighbours:
             return
         if budget_clock is not None and budget_clock.expired:
             return
