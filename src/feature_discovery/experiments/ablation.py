@@ -94,7 +94,8 @@ def autofeat(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
+    parser = argparse.ArgumentParser(
+        description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
     parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
     parser.add_argument("--value-ratio", type=float, default=0.65)
     parser.add_argument("--top-k", type=int, default=15)

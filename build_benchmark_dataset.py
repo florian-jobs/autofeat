@@ -61,10 +61,12 @@ def main():
         raise ValueError(f"--target-column {args.target_column!r} not found (columns: {list(df.columns)})")
 
     feature_columns = [c for c in df.columns if c != args.target_column]
-    if args.num_tables > len(feature_columns) + 1:
+    required_columns = (args.num_tables - 1) * args.min_cols_per_table
+    if required_columns > len(feature_columns):
         raise ValueError(
-            f"--num-tables {args.num_tables} needs at least that many feature columns to split "
-            f"({len(feature_columns)} available); lower --num-tables or --min-cols-per-table"
+            f"--num-tables {args.num_tables} with --min-cols-per-table {args.min_cols_per_table} needs "
+            f"{required_columns} feature columns, only {len(feature_columns)} available; "
+            f"lower --num-tables or --min-cols-per-table"
         )
 
     nodes = build_tree(args.num_tables, args.max_depth, rng)
@@ -130,7 +132,17 @@ def main():
         print(f"'{args.name}' already present in {datasets_csv}, leaving it as-is.")
     else:
         target_dtype = df[args.target_column].dtype
-        dataset_type = "binary" if df[args.target_column].nunique() == 2 else "regression"
+        target_nunique = df[args.target_column].nunique()
+        if target_nunique == 2:
+            dataset_type = "binary"
+        elif pd.api.types.is_numeric_dtype(target_dtype):
+            dataset_type = "regression"
+        else:
+            raise ValueError(
+                f"--target-column {args.target_column!r} has {target_nunique} non-numeric classes; "
+                f"only binary classification or numeric regression targets are supported "
+                f"(the paper's own benchmark datasets are all binary classification)"
+            )
         new_row = pd.DataFrame([{
             "base_table_path": args.name, "base_table_name": "table_0_0.csv",
             "base_table_label": args.name, "target_column": args.target_column,
@@ -145,8 +157,7 @@ def main():
         cols = columns_per_table[tid]
         print(f"  {tid}.csv  (depth={depth}, parent={parent_id}, {len(cols)} feature cols)")
     print(f"connections.csv: {len(connections)} edges")
-    print(f"\nRun:\n  uv run python src/feature_discovery/experiments/ablation.py"
-          f"  # (edit its __main__ to use dataset '{args.name}' and connections.csv above)")
+    print(f"\nRun:\n  uv run python src/feature_discovery/experiments/ablation.py --dataset {args.name}")
 
 
 if __name__ == "__main__":

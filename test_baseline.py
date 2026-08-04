@@ -42,7 +42,7 @@ def build_limited_join_paths(join_paths_path: Path, queries_dir: Path, base_tabl
         neighbours |= set(join_paths_df.loc[join_paths_df["to_id"].isin(frontier), "from_id"])
         frontier = (neighbours - visited)
         if len(visited) + len(frontier) > limit:
-            frontier = set(list(frontier)[: limit - len(visited)])
+            frontier = set(sorted(frontier)[: limit - len(visited)])
         visited |= frontier
 
     limited_df = join_paths_df[

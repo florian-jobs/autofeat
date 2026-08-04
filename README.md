@@ -156,6 +156,30 @@ uv run python build_benchmark_dataset.py \
 uv run python src/feature_discovery/experiments/ablation.py --dataset mydataset
 ```
 
+### Example: reproducing `credit` on the server
+
+```bash
+cd ~/data/baselines/autofeat
+git pull
+uv sync   # picks up the setuptools<81 pin (autogluon needs pkg_resources, removed in setuptools>=81)
+uv run python src/feature_discovery/experiments/ablation.py --dataset credit
+```
+
+Expected result — `results/thesis/credit_AutoFeat.csv` gets one row per evaluated join path, reaching all 5
+joinable tables (not just the two directly connected to the base table):
+
+| Path | Tables joined | Accuracy |
+| --- | --- | --- |
+| `credit → table_1_1` | 2 | 0.68 |
+| `credit → table_1_1 + table_1_2` | 3 | 0.65 |
+| `credit → table_1_1 + table_1_2 → table_2_5` | 4 | 0.695 |
+| `credit → table_1_1 (+table_2_3) + table_1_2 (+table_2_5)` | 5 | 0.715 |
+| `credit → table_1_1 (+table_2_3, +table_2_4) + table_1_2 (+table_2_5)` (full depth-3 join) | 6 | **0.735** |
+
+Best accuracy (0.735) is close to the paper's reported ~0.75 for `credit` on the "Linear" model (Figure 5). If
+your run instead tops out at accuracy 0.65 with only 2-3 tables joined, the BFS fix hasn't landed — re-check
+`git log -1 -- src/feature_discovery/autofeat_pipeline/autofeat.py` and rerun `git pull`.
+
 `build_benchmark_dataset.py` mimics the paper's own "Benchmark Setting" construction (Section VII-A): it
 vertically splits the source table's columns across a random tree of smaller tables, linking them with synthetic
 KFK columns (the same row index copied along each branch) so every join is lossless — the same pattern as the
@@ -207,6 +231,60 @@ None of `test_baseline.py`'s paths are hardcoded — they're CLI flags, falling 
 
 To test against a real server layout (an actual `corpora/`/`queries/` directory tree), just point these at it —
 no code or fixture-building step required.
+
+### Example: end-to-end against real server data
+
+Real run against a NYC open-data corpus on the server, starting from a base table with no `join_paths.csv` yet:
+
+```bash
+cd ~/data/baselines/autofeat
+
+# 1. Discover a join_paths.csv (small --limit first — the corpus is 60GB)
+uv run python discover_join_paths.py \
+    --corpora ~/data/corpora/open_data/joinable_tables/ --limit 5 \
+    --input ~/data/corpora/open_data/joinable_tables/nyc/nyc-finance-39g5-gbp3/table.csv \
+    --query_column agency_name --target_column total_current_budget_amount \
+    --sample-rows 5000 --verbose
+```
+
+```
+Matching .../nyc-finance-39g5-gbp3/table.csv ('agency_name') against 5 candidate tables ...
+  match: nyc-education-2pmj-y4p4.school_name (similarity=0.39)
+  match: nyc-education-35sw-rdxj.agency (similarity=0.52)
+  ...
+5 join path(s) written to tmp/queries/nyc-finance-39g5-gbp3/join_paths.csv
+
+Run:
+  python test_baseline.py --queries-dir tmp/queries --data-dir tmp/corpus --corpus nyc-finance-39g5-gbp3_lake --base-table nyc-finance-39g5-gbp3 --target-column-id 12
+```
+
+```bash
+# 2. Run test_baseline.py with the printed command (prefix uv run, and total_current_budget_amount
+#    is a dollar amount, so use --downstream-task regression, not the classification default)
+uv run python test_baseline.py \
+    --queries-dir tmp/queries --data-dir tmp/corpus --corpus nyc-finance-39g5-gbp3_lake \
+    --base-table nyc-finance-39g5-gbp3 --target-column-id 12 --downstream-task regression
+```
+
+```
+shape: (1_256, 31)
+┌─────────────────┬─────────────────┬─────┬──────────────────┬──────────────────┐
+│ other_categorical_funds  ┆ inter_fund_agreement ┆ ... ┆ unit_appropriation_number ┆ federal_funds_current_...  │
+│ ---              ┆ ---               ┆     ┆ ---              ┆ ---              │
+│ i64               ┆ i64               ┆     ┆ i64              ┆ i64              │
+╞═══════════════════╪═══════════════════╪═════╪══════════════════╪══════════════════╡
+│ 0                  ┆ 0                  ┆ ... ┆ 2                 ┆ 0                 │
+│ 0                  ┆ 0                  ┆ ... ┆ 122               ┆ 12331687          │
+└───────────────────┴───────────────────┴─────┴──────────────────┴──────────────────┘
+```
+
+Two things worth checking on a real run like this before trusting the result:
+- **Match quality** — `discover_join_paths.py`'s default `--threshold 0.55` gates weak matches, but similarity
+  alone doesn't guarantee the columns are *semantically* joinable (e.g. `agency_name` matching `school_name` at
+  0.52 is a plausible but not certain real relationship). Spot-check a joined column's values against the base
+  table before trusting the result.
+- **`--downstream-task`** — `test_baseline.py` defaults to `classification`; pick `regression` explicitly for a
+  continuous target like a dollar amount, as above.
 
 `--limit` works by walking `join_paths.csv` from the base table outward (BFS over `from_id`/`to_id`) and writing
 a temporary join-paths file restricted to the first `limit` tables reached, passed to `baseline.py` via its
