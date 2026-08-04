@@ -55,11 +55,28 @@ only bounds traversal *after* `join_paths.csv` exists) and writes a `join_paths.
 `test_baseline.py` can run against directly — no Neo4j involved.
 
 ```bash
-python discover_join_paths.py \
+uv run python discover_join_paths.py \
     --corpora ~/data/corpora/open_data/joinable_tables/ --limit 5 \
     --input ~/data/corpora/open_data/joinable_tables/nyc/nyc-finance-39g5-gbp3/table.csv \
     --query_column agency_name --target_column total_current_budget_amount
 ```
+
+Expected output on a successful match:
+
+```
+Matching .../table.csv ('agency_name') against 5 candidate tables under ... ...
+  match: nyc-some-other-table.some_column (similarity=0.81)
+  skip nyc-broken-table: <read error, if any>
+
+2 join path(s) written to .../queries/nyc-finance-39g5-gbp3/join_paths.csv
+Base table staged at: .../queries/nyc-finance-39g5-gbp3/table.csv
+Matched lake tables staged at: .../corpus/nyc-finance-39g5-gbp3_lake
+
+Run:
+  python test_baseline.py --queries-dir ... --data-dir ... --corpus nyc-finance-39g5-gbp3_lake --base-table nyc-finance-39g5-gbp3 --target-column-id N
+```
+
+If no candidate clears `--threshold`, it instead prints `No matches found above threshold; no join_paths.csv written.` and exits without staging anything — rerun with `--verbose` (see below) to see why.
 
 It searches candidates under `--input`'s own parent directory first (e.g. other tables under `.../nyc/` if
 `--input` is `.../nyc/nyc-finance-39g5-gbp3/table.csv`) — far more likely to be genuinely joinable than an
@@ -105,14 +122,29 @@ Since there is no real `beluga` package in this checkout yet, testing the adapte
 would hand it: a base table directory, a `join_paths.csv`, and a lake corpus directory.
 
 ```bash
-python setup_baseline_test_fixture.py   # materializes tmp/queries/credit and tmp/corpus/credit_lake
-python test_baseline.py                 # runs AutoFeatBaseline.run(config) against that fixture
+uv run python setup_baseline_test_fixture.py   # materializes tmp/queries/credit and tmp/corpus/credit_lake
+uv run python test_baseline.py                 # runs AutoFeatBaseline.run(config) against that fixture
 ```
 
 `test_baseline.py` builds `config` as a plain `SimpleNamespace` rather than importing `beluga.config.schema.Config`
 — `baseline.py` never imports `beluga` directly (see the `try/except ImportError` in `_read_base_table`), so this
 is a faithful stand-in for how the real harness will call it. A successful run prints the augmented `polars.DataFrame`
-(base table columns + selected joined features).
+(base table columns + selected joined features), e.g.:
+
+```
+shape: (1_000, 12)
+┌─────────┬─────────┬─────┬───────────────────────┬─────────────────────────┐
+│ column0 ┆ column1 ┆ ... ┆ credit_lake.feature_x ┆ credit_lake.feature_y   │
+│ ---     ┆ ---     ┆     ┆ ---                   ┆ ---                     │
+│ i64     ┆ f64     ┆     ┆ f64                   ┆ str                     │
+╞═════════╪═════════╪═════╪═══════════════════════╪═════════════════════════╡
+│ ...     ┆ ...     ┆ ... ┆ ...                   ┆ ...                     │
+└─────────┴─────────┴─────┴───────────────────────┴─────────────────────────┘
+```
+
+Exact column names/counts depend on which join path AutoFeat ranks best; if the base table alone outranks every
+join, the base table is returned unchanged (no `_lake.` prefixed columns). A failed run raises a `ValueError`
+instead — see the note at the end of this section for what each one means.
 
 None of `test_baseline.py`'s paths are hardcoded — they're CLI flags, falling back to the local fixture above:
 
@@ -138,11 +170,11 @@ read, not how much of any single table is read.
 
 ```bash
 # 1. Local fixture, defaults (classification on the credit dataset)
-python setup_baseline_test_fixture.py
-python test_baseline.py
+uv run python setup_baseline_test_fixture.py
+uv run python test_baseline.py
 
 # 2. Local fixture, explicit flags (equivalent to the defaults above)
-python test_baseline.py \
+uv run python test_baseline.py \
     --queries-dir tmp/queries --data-dir tmp/corpus --corpus credit_lake \
     --base-table credit --target-column-id 0 --downstream-task classification
 
@@ -150,17 +182,28 @@ python test_baseline.py \
 # (requires a fixture for that base table first — setup_baseline_test_fixture.py only
 #  builds the "credit" one; point --queries-dir/--data-dir at your own tmp/queries/<table>
 #  + tmp/corpus/<table>_lake, or adapt setup_baseline_test_fixture.py's SOURCE)
-python test_baseline.py --base-table steel --target-column-id 3 --downstream-task regression
+uv run python test_baseline.py --base-table steel --target-column-id 3 --downstream-task regression
 
 # 4. Real server layout, unbounded (small/known corpus)
-python test_baseline.py \
+uv run python test_baseline.py \
     --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake --base-table my_table
 
 # 5. Real server layout, bounded traversal (large corpus, e.g. 60GB)
-python test_baseline.py \
+uv run python test_baseline.py \
     --queries-dir /srv/queries --data-dir /srv/corpora --corpus my_lake --base-table my_table \
     --limit 20
 ```
 
-A successful run prints the augmented `polars.DataFrame` and exits 0; a failure raises a `ValueError` naming the
-missing config field, unresolved base table, or failed join.
+A successful run prints the augmented `polars.DataFrame` and exits 0 (see the sample output above). With `--limit`,
+it first prints a line like `Limited join graph to 20 tables (37 of 210 edges) -> tmp/queries/_join_paths_limit_20.csv`
+before the run itself starts, confirming how much of the join graph was actually kept.
+
+A failed run raises a `ValueError` instead of printing a DataFrame — the message tells you which check failed:
+
+| Message contains | Meaning |
+| --- | --- |
+| `"must be set"` | A required config field (`base_table`, `queries_dir`, `data_dir`) was missing |
+| `"downstream_task ... not supported"` | `--downstream-task` was neither `classification` nor `regression` |
+| `"Target column ... not numeric"` | `--downstream-task regression` but the target column isn't numeric |
+| `"Cannot resolve base table file in ..."` | `queries_dir/<base_table>/` has zero or more than one CSV (besides `join_paths.csv`) |
+| `"Join failed for path"` | The best-ranked join path couldn't actually be materialized (e.g. a stale/mismatched `join_paths.csv`) |

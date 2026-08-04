@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("--query_column", required=True, help="Base table column to find joins on")
     parser.add_argument("--target_column", required=True, help="Base table target/label column")
     parser.add_argument("--limit", type=int, default=20, help="Max number of candidate tables to schema-match against")
-    parser.add_argument("--threshold", type=float, default=0.55, help="Minimum Valentine similarity to accept a match")
+    parser.add_argument("--threshold", type=float, default=0.35, help="Minimum Valentine similarity to accept a match")
     parser.add_argument("--sample-rows", type=int, default=5000, help="Rows read from each table (base + candidates) for schema matching; keeps matching cheap on multi-million-row tables")
     parser.add_argument("--base-table-id", default=None, help="Id for the base table (default: --input's parent folder name)")
     parser.add_argument("--queries-dir", default="tmp/queries", help="Where to stage <base_table>/ (base table CSV + join_paths.csv)")
