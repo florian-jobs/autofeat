@@ -67,7 +67,7 @@ class AutoFeatBaseline:
         if config.data_dir is None:
             raise ValueError("config.data_dir must be set (external lake corpus location)")
 
-        # extract relevant config parameters from veluga config
+        # extract relevant config parameters from beluga config
         table_dir = Path(config.queries_dir) / config.base_table
         lake_data_folder = Path(config.data_dir) / config.corpus
         base_table_sep = getattr(config, "base_table_sep", ",")
@@ -103,6 +103,7 @@ class AutoFeatBaseline:
         join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
         join_paths_df = pd.read_csv(join_paths_df_path)
 
+        # Make lake_data_folder, jon_paths_df dynamic not hardcoded
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
             lake_data_folder=str(lake_data_folder),

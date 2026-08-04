@@ -38,10 +38,26 @@ def parse_args():
 
 
 def find_candidates(corpora_dir: Path, input_path: Path, limit: int):
-    candidates = sorted(
-        p for p in corpora_dir.rglob("*.csv") if p.resolve() != input_path.resolve()
-    )
-    return candidates[:limit]
+    """
+    Prefer tables "near" --input: siblings under its parent directory (e.g. other tables under
+    .../nyc/ if --input is .../nyc/nyc-finance-39g5-gbp3/table.csv) are far more likely to be
+    genuinely joinable than an arbitrary alphabetical slice of the whole corpus. Only fall back to
+    the rest of --corpora if --limit isn't filled by nearby tables.
+    """
+    input_resolved = input_path.resolve()
+    local_scope = input_path.resolve().parent.parent
+    if corpora_dir.resolve() not in local_scope.parents and local_scope != corpora_dir.resolve():
+        local_scope = corpora_dir  # --input isn't nested under --corpora; no meaningful "nearby" scope
+
+    nearby = sorted(p for p in local_scope.rglob("*.csv") if p.resolve() != input_resolved)
+    candidates = nearby[:limit]
+
+    if len(candidates) < limit:
+        seen = {p.resolve() for p in candidates} | {input_resolved}
+        rest = sorted(p for p in corpora_dir.rglob("*.csv") if p.resolve() not in seen)
+        candidates += rest[: limit - len(candidates)]
+
+    return candidates
 
 
 def table_id_for(csv_path: Path) -> str:

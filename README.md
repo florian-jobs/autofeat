@@ -61,11 +61,13 @@ python discover_join_paths.py \
     --query_column agency_name --target_column total_current_budget_amount
 ```
 
-It walks `--corpora` recursively for `*.csv` files (up to `--limit`), uses each candidate's parent folder name as
-its table id (matching layouts like `.../nyc-finance-39g5-gbp3/table.csv`), keeps Valentine matches on
-`--query_column` above `--threshold` (default `0.55`), and prints the exact `test_baseline.py` command to run
-against the result. Table/column ids containing dashes (e.g. `nyc-finance-39g5-gbp3`) are handled correctly —
-see the join-path name encoding note below.
+It searches candidates under `--input`'s own parent directory first (e.g. other tables under `.../nyc/` if
+`--input` is `.../nyc/nyc-finance-39g5-gbp3/table.csv`) — far more likely to be genuinely joinable than an
+arbitrary alphabetical slice of the whole corpus — and only expands to the rest of `--corpora` if `--limit`
+isn't filled by nearby tables. It uses each candidate's parent folder name as its table id, keeps Valentine
+matches on `--query_column` above `--threshold` (default `0.55`), and prints the exact `test_baseline.py`
+command to run against the result. Table/column ids containing dashes (e.g. `nyc-finance-39g5-gbp3`) are
+handled correctly — see the join-path name encoding note below.
 
 If nothing matches, add `--verbose` to see each candidate's best similarity for `--query_column` even when it's
 below `--threshold` — useful for telling apart "no real join partner in this sample" from "just needs a lower

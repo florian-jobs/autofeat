@@ -1,15 +1,6 @@
-1. source ~/.venvs/autofeat/bin/activate #activate venv in wsl folder not mnt due to performance
-2. if docker compose up -d fails run docker-compose down then docker compose up again
-3. docker exec -it feature-discovery-neo4j cypher-shell -u neo4j -p pass instead of gui interface
-
-ask what process_key does.
-
-test python -c "from feature_discovery.autofeat_pipeline.autofeat import AutoFeat; from feature_discovery.experiments.ablation import autofeat;       print('imports ok')"
-
-from beluga config we receive: 1. corpus_dir (lake folder)
-                                2.base_table_dir
-                                3.base_table_df
-
-questions:
-1. when beluga hands base table, is the join column always first and target column always last
-
+1. Datasets used in AutoFeat:
+    For a comprehensive evaluation, we choose six binary classification datasets varying in domains (e.g., medicine,
+    web data, pattern recognition), the ratio of rows to columns,
+    and types of features (e.g., discrete, continuous, nominal, and
+    ordinal). These datasets are sourced from widely-employed
+    ML repositories: OpenML, Kaggle, and UC Irvine1.
