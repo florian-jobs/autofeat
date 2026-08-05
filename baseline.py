@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
+from importlib import resources
 
 import pandas as pd
 import polars as pl
@@ -55,30 +56,37 @@ class AutoFeatBaseline:
         )
 
     def run(self, config=None):
-        if config is None:
+        if config is None:  # Mirrors: config = Config() if config is None else config
             raise ValueError("A Config instance is required")
 
         if not config.base_table:
             raise ValueError("config.base_table must be set")
 
-        if config.queries_dir is None:
-            raise ValueError("config.queries_dir must be set (external base table location)")
-
-        if config.data_dir is None:
-            raise ValueError("config.data_dir must be set (external lake corpus location)")
+        if config.target_column_id is None:
+            raise ValueError("Value for target_column_id not specified in the configuration file")
 
         # extract relevant config parameters from beluga config
-        table_dir = Path(config.queries_dir) / config.base_table
-        lake_data_folder = Path(config.data_dir) / config.corpus
-        base_table_sep = getattr(config, "base_table_sep", ",")
+        if config.queries_dir is not None:
+            table_dir = Path(config.queries_dir) / config.base_table
+        else:
+            table_dir = resources.files("beluga.data").joinpath(
+                "queries/beers")  # to update with a new default base table
 
+        if config.data_dir is not None:
+            lake_data_folder = Path(config.data_dir) / config.corpus
+        else:
+            lake_data_folder = resources.files("beluga.data").joinpath("corpora/toy")
+
+        base_table_sep = getattr(config, "base_table_sep", ",")  # Needs checking. Not found in qcr/arda baselines.
+
+        # Mirrors: read_base_table(config.base_table, table_dir, config)
         base_table_df = self._read_base_table(config, table_dir, base_table_sep)
 
-        target_column_id = getattr(config, "target_column_id", None)
-        if target_column_id is not None:
-            target_column = base_table_df.columns[target_column_id]
-        else:
-            target_column = base_table_df.columns[-1]
+        # Unlike ARDA/QCR (which validate target_column_id is set but then always use the last
+        # column anyway), AutoFeat actually respects the configured value - a caller-specified
+        # target column is deliberately supported here (see README's regression example).
+        target_column_id = config.target_column_id
+        target_column = base_table_df.columns[target_column_id]
 
         downstream_task = getattr(config, "downstream_task", "classification")
         if downstream_task not in ("classification", "regression"):
@@ -103,7 +111,6 @@ class AutoFeatBaseline:
         join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
         join_paths_df = pd.read_csv(join_paths_df_path)
 
-        # Make lake_data_folder, jon_paths_df dynamic not hardcoded
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
             lake_data_folder=str(lake_data_folder),
