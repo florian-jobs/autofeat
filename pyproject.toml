@@ -31,7 +31,8 @@ dependencies = [
     "tqdm == 4.64.0",
     "typer == 0.9.0",
     "valentine == 0.1.6",
-    "xxhash"
+    "xxhash",
+    "setuptools>=75.3.4,<81",
 ]
 
 readme = "README.md"

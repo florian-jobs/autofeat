@@ -69,7 +69,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs/
 
 # PyBuilder
 target/
@@ -154,10 +154,18 @@ dmypy.json
 /src/feature_discovery/**/AutogluonModels/*
 
 neo4j-data/
+neo4j-db/
 paths_*.csv
 tfd/*
 *nohup*.out
 
 #etc
-notes.txt
+notes.md
 tmp/
+.claude/
+assets/
+data/
+
+# stray pasted-image files (Claude Code drops clipboard pastes as img.png, img_1.png, ... in cwd)
+img.png
+img_*.png
