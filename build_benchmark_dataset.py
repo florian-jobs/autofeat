@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--input", required=True, help="Path to the source CSV (a single wide OpenML-style table)")
@@ -33,7 +32,6 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--benchmark-dir", default="data/benchmark", help="Root benchmark directory")
     return parser.parse_args()
-
 
 def build_tree(num_tables: int, max_depth: int, rng: random.Random):
     """Return a list of (table_id, depth, parent_id) for a random tree rooted at table_0_0, one entry per table."""
@@ -50,7 +48,6 @@ def build_tree(num_tables: int, max_depth: int, rng: random.Random):
         per_depth_count[depth] = idx + 1
         nodes.append((table_id, depth, parent_id))
     return nodes
-
 
 def main():
     args = parse_args()
@@ -158,7 +155,6 @@ def main():
         print(f"  {tid}.csv  (depth={depth}, parent={parent_id}, {len(cols)} feature cols)")
     print(f"connections.csv: {len(connections)} edges")
     print(f"\nRun:\n  uv run python src/feature_discovery/experiments/ablation.py --dataset {args.name}")
-
 
 if __name__ == "__main__":
     main()
