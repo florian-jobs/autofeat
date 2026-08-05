@@ -99,6 +99,7 @@ def autofeat(
         result.cutoff_threshold = value_ratio
 
     logging.debug("Save results ... ")
+    RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)  # not guaranteed to exist on a fresh clone/pull
     pd.DataFrame(all_results).to_csv(RESULTS_FOLDER / f"{dataset.base_table_label}_{approach}.csv", index=False)
 
     return all_results, top_k_paths, selected_features
@@ -106,8 +107,7 @@ def autofeat(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
+    parser = argparse.ArgumentParser(description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
     parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
     parser.add_argument("--value-ratio", type=float, default=0.65)
     parser.add_argument("--top-k", type=int, default=15)
