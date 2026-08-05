@@ -134,17 +134,28 @@ uv run python src/feature_discovery/experiments/ablation.py --dataset credit
 | `--dataset` | `credit` | `base_table_label` in `data/benchmark/datasets.csv` |
 | `--value-ratio` | `0.65` | Join-quality pruning threshold (τ in the paper) |
 | `--top-k` | `15` | Max features retained per table (κ in the paper) |
-| `--algorithm` | `LR` | Model passed to `evaluate_all_algorithms` |
+| `--algorithm` | `LR` | Model passed to `evaluate_all_algorithms`: one of `LR`, `RF`, `GBM`, `XT`, `XGB`, `KNN` |
 
 Each run writes `results/thesis/<dataset>_AutoFeat.csv` — one row per evaluated join path, with `Result` dataclass
 fields (`accuracy`, `train_time`, `feature_selection_time`, `rank`, `join_path_features`, ...). The paper's own
-defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults above.
+defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults above. `GBM` (LightGBM) and `XGB`
+(XGBoost) match the paper's tree-based headline numbers (Figure 4); `LR` matches the "Linear" chart (Figure 5).
 
-**Known-fixed bug:** the BFS traversal used to stop after exactly one hop from the base table on every run,
-regardless of `--top-k` (`autofeat.py`'s recursion guard treated "already seen as a neighbour" as "already fully
-explored," which is trivially always true one level in). This has been fixed — traversal now correctly continues
-into deeper hops. If you're comparing against results generated before this fix, expect them to be lower and
-less deep than what you get now.
+**Known-fixed bugs:**
+- The BFS traversal used to stop after exactly one hop from the base table on every run, regardless of `--top-k`
+  (`autofeat.py`'s recursion guard treated "already seen as a neighbour" as "already fully explored," which is
+  trivially always true one level in). Traversal now correctly continues into deeper hops.
+- `--algorithm` used to be silently ignored — every run trained `LR` regardless of what was requested, and
+  `GBM`/`XT`/`XGB`/`KNN` would raise `BadParameter` if you tried them directly. Both are fixed; all six algorithms
+  now genuinely run. `GBM`/`XGB` need `lightgbm`/`xgboost` installed (`uv sync` picks these up — `xgboost` is
+  pinned to `<1.8`, the range `autogluon.tabular==0.7.0` actually supports; newer `xgboost` breaks it).
+- Stratified sampling never triggered for classification tasks (`autofeat.py` compared the task against the
+  literal string `"classification"`, but the value passed in is always `"binary"`/`"regression"` — see
+  `dataset_object.py`). Only matters once a dataset's row count exceeds `sample_size` (default 3000) — `credit`
+  was never affected, but `covertype`/`miniboone`/`jannis`/`bioresponse` are.
+
+If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
+possibly mislabeled by algorithm.
 
 Building a new benchmark dataset from scratch — e.g. an OpenML table the paper didn't cover — is a different
 scenario (no ground-truth join graph to match, since you're defining the schema yourself):
@@ -161,7 +172,7 @@ uv run python src/feature_discovery/experiments/ablation.py --dataset mydataset
 ```bash
 cd ~/data/baselines/autofeat
 git pull
-uv sync   # picks up the setuptools<81 pin (autogluon needs pkg_resources, removed in setuptools>=81)
+uv sync   # picks up the setuptools<81 pin (autogluon needs pkg_resources) and lightgbm/xgboost for --algorithm GBM/XGB
 uv run python src/feature_discovery/experiments/ablation.py --dataset credit
 ```
 

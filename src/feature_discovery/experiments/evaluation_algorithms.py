@@ -64,28 +64,25 @@ class Result:
             self.total_time += self.feature_selection_time
 
 hyper_parameters = [
-    # {"LR": {'penalty': 'L1'}},
+    {"LR": {'penalty': 'L1'}},
     {"RF": {}},
-    # {"GBM": {}},
-    # {"XT": {}},
-    # {"XGB": {}},
-    # {'KNN': {}},
+    {"GBM": {}},
+    {"XT": {}},
+    {"XGB": {}},
+    {"KNN": {}},
 ]
 
 def get_hyperparameters(algorithm: Optional[str] = None) -> List[dict]:
     if algorithm is None:
         return hyper_parameters
 
-    if algorithm == 'LR':
-        return [{'LR': {'penalty': 'L1'}}]
+    for entry in hyper_parameters:
+        if algorithm in entry:
+            return [entry]
 
-    model = {algorithm: {}}
-    if model in hyper_parameters:
-        return [model]
-    else:
-        raise typer.BadParameter(
-            "Unsupported algorithm. Choose one from the list: [RF, GBM, XT, XGB, KNN, LR]."
-        )
+    raise typer.BadParameter(
+        "Unsupported algorithm. Choose one from the list: [RF, GBM, XT, XGB, KNN, LR]."
+    )
 
 def run_auto_gluon(dataframe: pd.DataFrame, target_column: str, problem_type: str, algorithms_to_run: dict,
                    automl_results_folder: str | None = None):
@@ -219,11 +216,15 @@ def evaluate_all_algorithms(dataframe: pd.DataFrame, target_column: str, algorit
     # Drop rows with non-finite target values (NaN from left joins)
     df = df.dropna(subset=[target_column])
 
-    logging.debug(f"Training AutoGluon ... ")
+    algorithms_to_run = {}
+    for entry in get_hyperparameters(algorithm):
+        algorithms_to_run.update(entry)
+
+    logging.debug(f"Training AutoGluon with {list(algorithms_to_run.keys())} ... ")
     runtime, results = run_auto_gluon(
         dataframe=df,
         target_column=target_column,
-        algorithms_to_run={"LR": {}},
+        algorithms_to_run=algorithms_to_run,
         problem_type=problem_type,
     )
 

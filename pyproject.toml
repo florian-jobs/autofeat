@@ -33,6 +33,8 @@ dependencies = [
     "valentine == 0.1.6",
     "xxhash",
     "setuptools>=75.3.4,<81",
+    "lightgbm>=4.6.0",
+    "xgboost>=1.6,<1.8",
 ]
 
 readme = "README.md"

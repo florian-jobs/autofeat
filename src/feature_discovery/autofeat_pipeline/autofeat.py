@@ -12,6 +12,7 @@ import polars as pl
 from autogluon.features.generators import AutoMLPipelineFeatureGenerator
 
 # from .....utils.common import process_key  # according to fedor simple string normalization
+from feature_discovery.experiments.dataset_object import CLASSIFICATION
 from feature_discovery.helpers.process_key import process_key
 from .join_data import join_and_save
 from .join_path_feature_selection import RelevanceRedundancy
@@ -109,9 +110,10 @@ class AutoFeat:
             table_sep=self.base_table_sep, use_polars=self.use_polars
         )
 
-        # Stratified sampling
+        # Stratified sampling. `self.task` is always CLASSIFICATION ("binary") or REGRESSION
+        # ("regression") - never the literal string "classification" - see dataset_object.py.
         if self.sample_size < base_table_df.shape[0]:
-            if self.task == 'classification':
+            if self.task == CLASSIFICATION:
                 X_train, X_test = train_test_split(
                     base_table_df,
                     train_size=self.sample_size,
