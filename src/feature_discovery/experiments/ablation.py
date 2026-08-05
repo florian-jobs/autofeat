@@ -1,3 +1,8 @@
+# Thesis-reproduction entry point: runs the AutoFeat pipeline against a data/benchmark/<dataset>
+# table with a known KFK join graph (connections.csv) and writes per-path results to
+# results/thesis/<dataset>_<approach>.csv, for comparing reproduced accuracy against the numbers
+# reported in docs/assets/papers/ICDE_FeatureDiscovery.pdf. Separate from baseline.py, which is the
+# beluga integration adapter and has no CLI of its own.
 import logging
 import time
 from typing import Tuple, List
@@ -13,6 +18,7 @@ from feature_discovery.experiments.result_object import Result
 from feature_discovery.experiments.utils_dataset import filter_datasets
 
 def load_join_paths(connections_csv_path: str) -> pd.DataFrame:
+    """Read a benchmark-setting connections.csv (fk/pk columns) into the from_id/to_id shape AutoFeat expects."""
     df = pd.read_csv(connections_csv_path)
     df = df.rename(columns={
         "fk_table": "from_id",
@@ -40,6 +46,12 @@ def autofeat(
         use_polars: bool = True,
         sample_size: int = 3000,
 ) -> Tuple[List[Result], List[Tuple], List[str]]:
+    """
+    Run AutoFeat's BFS join-path discovery for `dataset`, then evaluate the top-k ranked paths with
+    `algorithm` (see evaluation_algorithms.get_hyperparameters for supported values). Writes one row
+    per evaluated path to results/thesis/<dataset.base_table_label>_<approach>.csv and returns the
+    same results alongside the ranked path list and the union of selected features.
+    """
     logging.debug(f"Running on TFD (Transitive Feature Discovery) result with AutoGluon")
 
     start = time.time()
@@ -103,7 +115,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     init_datasets()
-    dataset = filter_datasets([args.dataset])[0]
+    matches = filter_datasets([args.dataset])
+    if not matches:
+        raise SystemExit(
+            f"--dataset {args.dataset!r} not found in data/benchmark/datasets.csv "
+            f"(build it first with build_benchmark_dataset.py, or check the spelling)"
+        )
+    dataset = matches[0]
     autofeat(dataset,
              value_ratio=args.value_ratio,
              top_k=args.top_k,

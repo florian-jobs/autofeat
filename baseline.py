@@ -1,3 +1,11 @@
+"""
+Beluga entry point for the AutoFeat baseline: wires the Neo4j-decoupled AutoFeat pipeline
+(streaming_feature_selection over join_paths.csv, then evaluate_join_paths) behind beluga's Config
+object, so beluga can run AutoFeat without knowing anything about its internals. Shaped to match the
+sibling QCRBaseline/ARDABaseline contract (duck-typed Config in, polars.DataFrame out), with the
+deviations noted inline where AutoFeat's needs differ - e.g. it validates AND uses target_column_id,
+where the siblings validate it but always use the last column instead.
+"""
 from __future__ import annotations
 
 import warnings
@@ -14,6 +22,8 @@ from feature_discovery.experiments.evaluate_join_paths import join_from_path, re
 from feature_discovery.graph_processing.neo4j_transactions import clear_df_cache
 
 class AutoFeatBaseline:
+    """Runs join-path discovery + feature selection for one beluga Config and returns the augmented base table."""
+
     def __init__(
             self,
             value_ratio: float = 0.65,
@@ -27,6 +37,7 @@ class AutoFeatBaseline:
         self.sample_size = sample_size
 
     def _read_base_table(self, config, table_dir, base_table_sep):
+        """Prefer beluga's own reader; fall back to a plain CSV read when beluga isn't importable (dev/testing)."""
         try:
             from beluga.online.base_table import read_base_table
         except ImportError:
@@ -56,6 +67,7 @@ class AutoFeatBaseline:
         )
 
     def run(self, config=None):
+        """Duck-typed run(config) -> polars.DataFrame; raises ValueError on any invalid/unresolvable input."""
         if config is None:  # Mirrors: config = Config() if config is None else config
             raise ValueError("A Config instance is required")
 
