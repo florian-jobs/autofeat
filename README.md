@@ -163,15 +163,20 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   path as "best." `ablation.py` now re-execs itself via `subprocess.run` with `PYTHONHASHSEED` set in the real
   environment before that happens (an `os.execvpe` self-re-exec was tried first but segfaults under `uv`'s
   Windows launcher).
-- BFS was joining far more tables than the paper reports for the same dataset (e.g. `bioresponse`: 37 tables vs.
-  the paper's 1). Root cause: `streaming_feature_selection`'s per-sibling loop read and wrote the same shared
-  `previous_queue` set, so each sibling neighbour joined onto the *previous sibling's* result instead of the
-  common ancestor — collapsing independent branches (e.g. a table's 3 children) into one long chained path
-  instead of exploring them separately. Fixed by snapshotting `previous_queue` before the sibling loop and
-  merging results back in only after all siblings are processed. This closes most of the gap for the datasets
-  that were wildly over-joining (`bioresponse`, `jannis`); a couple of datasets where the paper's own AutoFeat
-  benefits from going deep (`steel`, `covertype`) now undershoot instead, likely because `--top-k` selects
-  globally across all depths rather than per depth level — not yet fixed.
+- **Not a bug, but worth documenting:** BFS joins far more tables than the paper reports for some datasets
+  (e.g. `bioresponse`: ~37 tables vs. the paper's 1). This looked like a bug in `streaming_feature_selection`'s
+  per-sibling loop — it reads and writes the same shared `previous_queue` set, so each sibling neighbour joins
+  onto the *previous sibling's* result instead of the common ancestor, collapsing independent branches (e.g. a
+  table's 3 children) into one long chained path instead of exploring them separately as independent candidates.
+  A local fix (snapshotting `previous_queue` per sibling) was tried and did shrink `bioresponse`'s join count
+  from 37 to 4, much closer to the paper's 1 — but it was **reverted** after checking the upstream
+  `delftdata/autofeat` source directly: their `streaming_feature_selection` has the exact same
+  read-and-mutate-`previous_queue`-inside-the-sibling-loop structure, confirmed line-for-line (matching
+  variable names, and identical commented-out debug lines). This sequential sibling-chaining is the paper's
+  actual, shipped algorithm, not a defect in this reimplementation. The residual gap on datasets like
+  `bioresponse`/`jannis`/`covertype`/`steel` therefore isn't explained by this loop — it's more likely down to
+  hash-order-dependent tie-breaking (which sibling gets processed "first" when chaining) differing between this
+  environment's runs and the authors', dataset-construction differences, or something else not yet identified.
 
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.

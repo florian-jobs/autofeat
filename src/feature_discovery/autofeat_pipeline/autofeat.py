@@ -169,13 +169,6 @@ class AutoFeat:
         if previous_queue is None:
             previous_queue = queue.copy()
 
-        # Accumulates every join produced this call, across every base node popped from
-        # `queue` and every one of its neighbours. Must stay separate from `previous_queue`
-        # itself: `previous_queue` is read (via the inner while-loop below) once per sibling
-        # neighbour, and every sibling needs to see the same starting snapshot rather than
-        # each other's results -- see the neighbours loop below for why.
-        next_previous_queue = set()
-
         # Anytime hook for AutoFeat. Each BFS queue-pop corresponds to one
         # outer iteration. We emit the cumulative set of features collected
         # across all explored join paths up to that point and break when the
@@ -247,17 +240,16 @@ class AutoFeat:
 
                 current_queue = set()
                 logging.debug(f"\tPrevious queue: {previous_queue}")
-                # Read from a per-sibling snapshot, not the shared `previous_queue` itself:
-                # every neighbour of `base_node_id` (and every other base node popped from
-                # `queue` this call) must join against the *same* starting partial-join set,
-                # not whatever a sibling processed just before it left behind. Previously this
-                # loop popped directly from the shared `previous_queue` and wrote results back
-                # into it, so siblings joined onto each other's results instead of the common
-                # ancestor -- collapsing what should be independent branches (e.g. a table's 3
-                # children explored as 3 separate candidate paths) into one long chained path.
-                sibling_previous_queue = previous_queue.copy()
-                while len(sibling_previous_queue) > 0:
-                    previous_join_name = sibling_previous_queue.pop()
+                # Deliberately reads and drains the shared `previous_queue`, not a per-sibling
+                # snapshot: each neighbour's joins build on top of whatever the previous
+                # neighbour in this loop produced. This matches the upstream delftdata/autofeat
+                # implementation exactly (verified against
+                # https://github.com/delftdata/autofeat/blob/main/src/feature_discovery/autofeat_pipeline/autofeat.py)
+                # -- a prior local "fix" here (snapshotting previous_queue per sibling, treating
+                # siblings as independent branches) was reverted because it diverged from the
+                # paper's actual, shipped algorithm rather than correcting a bug in it.
+                while len(previous_queue) > 0:
+                    previous_join_name = previous_queue.pop()
 
                     previous_join = None
                     if previous_join_name == self.base_table_id:
@@ -343,10 +335,8 @@ class AutoFeat:
                         current_queue.add(join_name)
                         if not self.save_joins_to_disk:
                             self.joins_to_df[join_filename] = joined_df
-                # Accumulate this sibling's new joins separately; `previous_queue` itself stays
-                # untouched until every sibling/base-node this call has processed is done (see
-                # the snapshot note above).
-                next_previous_queue.update(current_queue)
+                # Initialise the queue with the new paths (current_queue)
+                previous_queue.update(current_queue)
 
             _iter_idx += 1
             _emit_progress(_iter_idx)
@@ -361,7 +351,7 @@ class AutoFeat:
             return
         self.streaming_feature_selection(
             join_paths_df, lake_data_folder, lake_table_sep,
-            all_neighbours, next_previous_queue,
+            all_neighbours, previous_queue,
             budget_clock=budget_clock, trajectory_emitter=trajectory_emitter,
         )
 
