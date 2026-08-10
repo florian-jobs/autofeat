@@ -8,16 +8,25 @@
 #
 # algorithm defaults to LR. See evaluation_algorithms.get_hyperparameters for supported values
 # (LR, RF, GBM, XT, XGB, KNN).
-set -euo pipefail
+set -uo pipefail
 
 ALGORITHM="${1:-LR}"
+failed=()
 
 for dir in data/benchmark/*/; do
     dataset=$(basename "$dir")
     if [ -f "${dir}connections.csv" ]; then
         echo "=== $dataset (--algorithm $ALGORITHM) ==="
-        uv run python src/feature_discovery/experiments/ablation.py --dataset "$dataset" --algorithm "$ALGORITHM"
+        if ! uv run python src/feature_discovery/experiments/ablation.py --dataset "$dataset" --algorithm "$ALGORITHM"; then
+            echo "!!! $dataset failed, continuing with the rest" >&2
+            failed+=("$dataset")
+        fi
     fi
 done
 
 uv run python summarize_results.py
+
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo "Failed datasets: ${failed[*]}" >&2
+    exit 1
+fi
