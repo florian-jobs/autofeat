@@ -217,6 +217,17 @@ Figure 4 (benchmark setting, averaged across `RF`/`GBM`/`XT`/`XGB`) or Figure 5 
 those are AutoFeat's own numbers for the exact setup `ablation.py` reproduces (known-KFK connections.csv, not a
 data-lake/discovered-connections run).
 
+To run every dataset that has a corpus under `data/benchmark/` (not just the ones registered in
+`datasets.csv` — a dataset needs an actual `connections.csv` present) and summarize them all in one go:
+
+```bash
+./run_all_ablation.sh          # defaults to --algorithm LR
+./run_all_ablation.sh GBM      # or any other supported algorithm
+```
+
+This is equivalent to calling `ablation.py --dataset <name> --algorithm <algorithm>` once per dataset directory,
+then `summarize_results.py` at the end.
+
 Building a new benchmark dataset from scratch — e.g. an OpenML table the paper didn't cover — is a different
 scenario (no ground-truth join graph to match, since you're defining the schema yourself):
 
