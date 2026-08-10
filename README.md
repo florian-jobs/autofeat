@@ -20,6 +20,8 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | `src/feature_discovery/graph_processing/neo4j_transactions.py` | Neo4j-free graph simulation over `join_paths_df`, plus the raw-CSV read cache (`get_df_with_prefix`) |
 | `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end; `--dataset` selects which `data/benchmark/<name>` to run |
 | `build_benchmark_dataset.py` | Splits a single wide CSV (e.g. an OpenML table) into a snowflake-schema benchmark dataset under `data/benchmark/<name>/`, registers it in `datasets.csv` |
+| `summarize_results.py` | Collapses `results/thesis/*.csv` down to one best-accuracy row per dataset+algorithm, for comparing against the paper's charts |
+| `run_all_ablation.sh` | Runs `ablation.py` over every dataset under `data/benchmark/`, then `summarize_results.py` |
 
 ## Setup
 
@@ -123,7 +125,9 @@ Separate from `baseline.py` (the integration adapter), `src/feature_discovery/ex
 same AutoFeat pipeline against the paper's own benchmark datasets, for comparing reproduced accuracy against the
 numbers in `docs/assets/papers/ICDE_FeatureDiscovery.pdf` (Table II / Figure 4-7). `data/benchmark/datasets.csv`
 lists the paper's 8 datasets (`credit`, `steel`, `jannis`, `miniboone`, `eyemove`, `bioresponse`, `school`,
-`covertype`); only `credit` ships with this checkout.
+`covertype`); `data/benchmark/` itself is gitignored (not tracked in git — see `.gitignore`), so which of those
+actually have a runnable corpus (`table_0_0.csv` + `connections.csv`) depends on what's present locally. `school`
+is the one commonly missing; the other 7 are typically present.
 
 ```bash
 uv run python src/feature_discovery/experiments/ablation.py --dataset credit
@@ -135,6 +139,7 @@ uv run python src/feature_discovery/experiments/ablation.py --dataset credit
 | `--value-ratio` | `0.65` | Join-quality pruning threshold (τ in the paper) |
 | `--top-k` | `15` | Max features retained per table (κ in the paper) |
 | `--algorithm` | `LR` | Model passed to `evaluate_all_algorithms`: one of `LR`, `RF`, `GBM`, `XT`, `XGB`, `KNN` |
+| `--sample-size` | `3000` | Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). Only affects path/feature ranking, not final training, which always uses the full joined table. Worth raising for very large base tables (e.g. `covertype`, 423K rows) where 3000 is a tiny fraction |
 
 Each run writes `results/thesis/<dataset>_AutoFeat.csv` — one row per evaluated join path, with `Result` dataclass
 fields (`accuracy`, `train_time`, `feature_selection_time`, `rank`, `join_path_features`, ...). The paper's own
@@ -153,9 +158,78 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   literal string `"classification"`, but the value passed in is always `"binary"`/`"regression"` — see
   `dataset_object.py`). Only matters once a dataset's row count exceeds `sample_size` (default 3000) — `credit`
   was never affected, but `covertype`/`miniboone`/`jannis`/`bioresponse` are.
+- Results weren't reproducible run-to-run: `PYTHONHASHSEED` was set from inside the already-running process
+  (`os.environ['PYTHONHASHSEED'] = '42'` in `autofeat.py`/`evaluation_algorithms.py`), which CPython ignores —
+  the variable is only read once, at interpreter startup. Since BFS traversal iterates Python `set()`s whose
+  order depends on string hashing, and `connections.csv` gives every edge `weight=1` (so tie-breaking leans
+  entirely on that order), every invocation picked a different traversal order and could rank a different join
+  path as "best." `ablation.py` now re-execs itself via `subprocess.run` with `PYTHONHASHSEED` set in the real
+  environment before that happens (an `os.execvpe` self-re-exec was tried first but segfaults under `uv`'s
+  Windows launcher).
+- **Not a bug, but worth documenting:** BFS joins far more tables than the paper reports for some datasets
+  (e.g. `bioresponse`: ~37 tables vs. the paper's 1). This looked like a bug in `streaming_feature_selection`'s
+  per-sibling loop — it reads and writes the same shared `previous_queue` set, so each sibling neighbour joins
+  onto the *previous sibling's* result instead of the common ancestor, collapsing independent branches (e.g. a
+  table's 3 children) into one long chained path instead of exploring them separately as independent candidates.
+  A local fix (snapshotting `previous_queue` per sibling) was tried and did shrink `bioresponse`'s join count
+  from 37 to 4, much closer to the paper's 1 — but it was **reverted** after checking the upstream
+  `delftdata/autofeat` source directly: their `streaming_feature_selection` has the exact same
+  read-and-mutate-`previous_queue`-inside-the-sibling-loop structure, confirmed line-for-line (matching
+  variable names, and identical commented-out debug lines). This sequential sibling-chaining is the paper's
+  actual, shipped algorithm, not a defect in this reimplementation. The residual gap on datasets like
+  `bioresponse`/`jannis`/`covertype`/`steel` therefore isn't explained by this loop.
+
+  The actual mechanism: each step of the chain (i.e. each table added) gets its own `ranking` entry
+  (`compute_score` in the paper's Algorithm 2), scored only from the relevance/redundancy of the features added
+  *at that step* — the score is never normalised by how deep the chain already is. So a long chain isn't
+  penalised for its length; if each new table along the way keeps contributing decent features, the rank keeps
+  climbing the deeper it goes. For `bioresponse`'s corpus this means the deepest candidates (30+ tables) end up
+  with the *highest* ranks, so they dominate the top-`--top-k` (default 15) candidates that actually get trained,
+  and whichever of those 15 has the best test accuracy — here, the 37-table one — gets reported as the run's
+  "best" path by `summarize_results.py`.
+
+  Since which specific tables end up chained together, and in what order, depends on Python `set()`
+  iteration/pop order (i.e. the hash seed), a different seed produces a genuinely different sequence of chained
+  candidates, which can produce a different accuracy outcome and a different "winning" path — including one
+  where a shallow candidate wins instead, as the paper reports for `bioresponse`. We fixed *our* runs to be
+  internally reproducible (`PYTHONHASHSEED=42` in `ablation.py`), but have no way to know or reproduce whichever
+  seed/environment the paper's authors' original run happened to land on, so this is plausibly just a different
+  (equally valid, per the shared algorithm) draw from the same nondeterministic traversal process, not a
+  discrepancy fixable in code.
 
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.
+
+### Comparing against the paper's numbers
+
+Each dataset's CSV has one row per evaluated join path — for comparison purposes you want the best-accuracy row
+per dataset+algorithm, not every row. `summarize_results.py` does this collapsing:
+
+```bash
+uv run python summarize_results.py
+```
+```
+   dataset   algorithm  best_accuracy  tables_joined   rank
+    credit LinearModel          0.735              6 0.5469
+```
+
+Compare `best_accuracy` against the paper's own reported numbers (`docs/assets/papers/ICDE_FeatureDiscovery.pdf`)
+— not Table II's "Best accuracy (OpenML.org)" column, which is the best accuracy anyone's ever reported on
+OpenML's leaderboard for the raw dataset, not what AutoFeat itself achieves. Use the green `AutoFeat` bars in
+Figure 4 (benchmark setting, averaged across `RF`/`GBM`/`XT`/`XGB`) or Figure 5 (benchmark setting, `LR` chart) —
+those are AutoFeat's own numbers for the exact setup `ablation.py` reproduces (known-KFK connections.csv, not a
+data-lake/discovered-connections run).
+
+To run every dataset that has a corpus under `data/benchmark/` (not just the ones registered in
+`datasets.csv` — a dataset needs an actual `connections.csv` present) and summarize them all in one go:
+
+```bash
+./run_all_ablation.sh          # defaults to --algorithm LR
+./run_all_ablation.sh GBM      # or any other supported algorithm
+```
+
+This is equivalent to calling `ablation.py --dataset <name> --algorithm <algorithm>` once per dataset directory,
+then `summarize_results.py` at the end.
 
 Building a new benchmark dataset from scratch — e.g. an OpenML table the paper didn't cover — is a different
 scenario (no ground-truth join graph to match, since you're defining the schema yourself):

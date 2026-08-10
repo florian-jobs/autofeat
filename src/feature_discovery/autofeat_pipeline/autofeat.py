@@ -240,6 +240,14 @@ class AutoFeat:
 
                 current_queue = set()
                 logging.debug(f"\tPrevious queue: {previous_queue}")
+                # Deliberately reads and drains the shared `previous_queue`, not a per-sibling
+                # snapshot: each neighbour's joins build on top of whatever the previous
+                # neighbour in this loop produced. This matches the upstream delftdata/autofeat
+                # implementation exactly (verified against
+                # https://github.com/delftdata/autofeat/blob/main/src/feature_discovery/autofeat_pipeline/autofeat.py)
+                # -- a prior local "fix" here (snapshotting previous_queue per sibling, treating
+                # siblings as independent branches) was reverted because it diverged from the
+                # paper's actual, shipped algorithm rather than correcting a bug in it.
                 while len(previous_queue) > 0:
                     previous_join_name = previous_queue.pop()
 

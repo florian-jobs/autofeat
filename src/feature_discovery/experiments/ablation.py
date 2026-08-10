@@ -3,6 +3,28 @@
 # results/thesis/<dataset>_<approach>.csv, for comparing reproduced accuracy against the numbers
 # reported in docs/assets/papers/ICDE_FeatureDiscovery.pdf. Separate from baseline.py, which is the
 # beluga integration adapter and has no CLI of its own.
+import os
+import sys
+
+# `os.environ['PYTHONHASHSEED'] = '42'` elsewhere in this codebase (autofeat.py,
+# evaluation_algorithms.py) is a no-op for the *current* process: CPython reads PYTHONHASHSEED
+# exactly once, at interpreter startup, to seed str/set/dict hash randomization. Setting it from
+# inside an already-running process has zero effect on that process's hashes. Since BFS traversal
+# uses sets (self.discovered, queue, all_neighbours) whose iteration order depends on those
+# hashes - and connections.csv gives every edge weight=1, so tie-breaking leans heavily on that
+# order - every invocation was picking a randomly different traversal order, changing which join
+# path got ranked/trained as "best" from run to run (confirmed empirically: ranking scores for
+# credit differed between runs without this). Fix: re-launch with PYTHONHASHSEED set in the real
+# environment before Python starts, which is the only place it actually takes effect. Uses
+# subprocess rather than os.execvpe(..) for the re-launch: process-image replacement via execvpe
+# was found to segfault under uv's Windows launcher.
+if os.environ.get("PYTHONHASHSEED") != "42":
+    import subprocess
+    env = os.environ.copy()
+    env["PYTHONHASHSEED"] = "42"
+    result = subprocess.run([sys.executable] + sys.argv, env=env)
+    sys.exit(result.returncode)
+
 import logging
 import time
 from typing import Tuple, List
@@ -112,6 +134,11 @@ if __name__ == "__main__":
     parser.add_argument("--value-ratio", type=float, default=0.65)
     parser.add_argument("--top-k", type=int, default=15)
     parser.add_argument("--algorithm", default="LR")
+    parser.add_argument("--sample-size", type=int, default=3000,
+                         help="Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). "
+                              "Only affects path/feature ranking, not final model training, which always "
+                              "uses the full joined table. Raising this can matter for large datasets "
+                              "(e.g. covertype) where 3000 rows is a very small fraction of the base table.")
     args = parser.parse_args()
 
     init_datasets()
@@ -126,6 +153,7 @@ if __name__ == "__main__":
              value_ratio=args.value_ratio,
              top_k=args.top_k,
              algorithm=args.algorithm,
+             sample_size=args.sample_size,
              join_paths_df=load_join_paths(f"data/benchmark/{args.dataset}/connections.csv"),
              lake_data_folder=f"data/benchmark/{args.dataset}",
              base_table_sep=",")
