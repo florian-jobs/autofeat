@@ -174,9 +174,25 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   read-and-mutate-`previous_queue`-inside-the-sibling-loop structure, confirmed line-for-line (matching
   variable names, and identical commented-out debug lines). This sequential sibling-chaining is the paper's
   actual, shipped algorithm, not a defect in this reimplementation. The residual gap on datasets like
-  `bioresponse`/`jannis`/`covertype`/`steel` therefore isn't explained by this loop — it's more likely down to
-  hash-order-dependent tie-breaking (which sibling gets processed "first" when chaining) differing between this
-  environment's runs and the authors', dataset-construction differences, or something else not yet identified.
+  `bioresponse`/`jannis`/`covertype`/`steel` therefore isn't explained by this loop.
+
+  The actual mechanism: each step of the chain (i.e. each table added) gets its own `ranking` entry
+  (`compute_score` in the paper's Algorithm 2), scored only from the relevance/redundancy of the features added
+  *at that step* — the score is never normalised by how deep the chain already is. So a long chain isn't
+  penalised for its length; if each new table along the way keeps contributing decent features, the rank keeps
+  climbing the deeper it goes. For `bioresponse`'s corpus this means the deepest candidates (30+ tables) end up
+  with the *highest* ranks, so they dominate the top-`--top-k` (default 15) candidates that actually get trained,
+  and whichever of those 15 has the best test accuracy — here, the 37-table one — gets reported as the run's
+  "best" path by `summarize_results.py`.
+
+  Since which specific tables end up chained together, and in what order, depends on Python `set()`
+  iteration/pop order (i.e. the hash seed), a different seed produces a genuinely different sequence of chained
+  candidates, which can produce a different accuracy outcome and a different "winning" path — including one
+  where a shallow candidate wins instead, as the paper reports for `bioresponse`. We fixed *our* runs to be
+  internally reproducible (`PYTHONHASHSEED=42` in `ablation.py`), but have no way to know or reproduce whichever
+  seed/environment the paper's authors' original run happened to land on, so this is plausibly just a different
+  (equally valid, per the shared algorithm) draw from the same nondeterministic traversal process, not a
+  discrepancy fixable in code.
 
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.
