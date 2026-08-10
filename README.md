@@ -20,6 +20,7 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | `src/feature_discovery/graph_processing/neo4j_transactions.py` | Neo4j-free graph simulation over `join_paths_df`, plus the raw-CSV read cache (`get_df_with_prefix`) |
 | `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end; `--dataset` selects which `data/benchmark/<name>` to run |
 | `build_benchmark_dataset.py` | Splits a single wide CSV (e.g. an OpenML table) into a snowflake-schema benchmark dataset under `data/benchmark/<name>/`, registers it in `datasets.csv` |
+| `summarize_results.py` | Collapses `results/thesis/*.csv` down to one best-accuracy row per dataset+algorithm, for comparing against the paper's charts |
 
 ## Setup
 
@@ -135,6 +136,7 @@ uv run python src/feature_discovery/experiments/ablation.py --dataset credit
 | `--value-ratio` | `0.65` | Join-quality pruning threshold (τ in the paper) |
 | `--top-k` | `15` | Max features retained per table (κ in the paper) |
 | `--algorithm` | `LR` | Model passed to `evaluate_all_algorithms`: one of `LR`, `RF`, `GBM`, `XT`, `XGB`, `KNN` |
+| `--sample-size` | `3000` | Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). Only affects path/feature ranking, not final training, which always uses the full joined table. Worth raising for very large base tables (e.g. `covertype`, 423K rows) where 3000 is a tiny fraction |
 
 Each run writes `results/thesis/<dataset>_AutoFeat.csv` — one row per evaluated join path, with `Result` dataclass
 fields (`accuracy`, `train_time`, `feature_selection_time`, `rank`, `join_path_features`, ...). The paper's own
@@ -153,9 +155,46 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   literal string `"classification"`, but the value passed in is always `"binary"`/`"regression"` — see
   `dataset_object.py`). Only matters once a dataset's row count exceeds `sample_size` (default 3000) — `credit`
   was never affected, but `covertype`/`miniboone`/`jannis`/`bioresponse` are.
+- Results weren't reproducible run-to-run: `PYTHONHASHSEED` was set from inside the already-running process
+  (`os.environ['PYTHONHASHSEED'] = '42'` in `autofeat.py`/`evaluation_algorithms.py`), which CPython ignores —
+  the variable is only read once, at interpreter startup. Since BFS traversal iterates Python `set()`s whose
+  order depends on string hashing, and `connections.csv` gives every edge `weight=1` (so tie-breaking leans
+  entirely on that order), every invocation picked a different traversal order and could rank a different join
+  path as "best." `ablation.py` now re-execs itself via `subprocess.run` with `PYTHONHASHSEED` set in the real
+  environment before that happens (an `os.execvpe` self-re-exec was tried first but segfaults under `uv`'s
+  Windows launcher).
+- BFS was joining far more tables than the paper reports for the same dataset (e.g. `bioresponse`: 37 tables vs.
+  the paper's 1). Root cause: `streaming_feature_selection`'s per-sibling loop read and wrote the same shared
+  `previous_queue` set, so each sibling neighbour joined onto the *previous sibling's* result instead of the
+  common ancestor — collapsing independent branches (e.g. a table's 3 children) into one long chained path
+  instead of exploring them separately. Fixed by snapshotting `previous_queue` before the sibling loop and
+  merging results back in only after all siblings are processed. This closes most of the gap for the datasets
+  that were wildly over-joining (`bioresponse`, `jannis`); a couple of datasets where the paper's own AutoFeat
+  benefits from going deep (`steel`, `covertype`) now undershoot instead, likely because `--top-k` selects
+  globally across all depths rather than per depth level — not yet fixed.
 
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.
+
+### Comparing against the paper's numbers
+
+Each dataset's CSV has one row per evaluated join path — for comparison purposes you want the best-accuracy row
+per dataset+algorithm, not every row. `summarize_results.py` does this collapsing:
+
+```bash
+uv run python summarize_results.py
+```
+```
+   dataset   algorithm  best_accuracy  tables_joined   rank
+    credit LinearModel          0.735              6 0.5469
+```
+
+Compare `best_accuracy` against the paper's own reported numbers (`docs/assets/papers/ICDE_FeatureDiscovery.pdf`)
+— not Table II's "Best accuracy (OpenML.org)" column, which is the best accuracy anyone's ever reported on
+OpenML's leaderboard for the raw dataset, not what AutoFeat itself achieves. Use the green `AutoFeat` bars in
+Figure 4 (benchmark setting, averaged across `RF`/`GBM`/`XT`/`XGB`) or Figure 5 (benchmark setting, `LR` chart) —
+those are AutoFeat's own numbers for the exact setup `ablation.py` reproduces (known-KFK connections.csv, not a
+data-lake/discovered-connections run).
 
 Building a new benchmark dataset from scratch — e.g. an OpenML table the paper didn't cover — is a different
 scenario (no ground-truth join graph to match, since you're defining the schema yourself):
