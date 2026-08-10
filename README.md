@@ -21,6 +21,7 @@ thesis-reproduction CLI (`src/feature_discovery/cli.py`, `run.py`), not by the b
 | `src/feature_discovery/experiments/ablation.py` | Thesis ablation study entry point, exercises the same pipeline end-to-end; `--dataset` selects which `data/benchmark/<name>` to run |
 | `build_benchmark_dataset.py` | Splits a single wide CSV (e.g. an OpenML table) into a snowflake-schema benchmark dataset under `data/benchmark/<name>/`, registers it in `datasets.csv` |
 | `summarize_results.py` | Collapses `results/thesis/*.csv` down to one best-accuracy row per dataset+algorithm, for comparing against the paper's charts |
+| `run_all_ablation.sh` | Runs `ablation.py` over every dataset under `data/benchmark/`, then `summarize_results.py` |
 
 ## Setup
 
@@ -124,7 +125,9 @@ Separate from `baseline.py` (the integration adapter), `src/feature_discovery/ex
 same AutoFeat pipeline against the paper's own benchmark datasets, for comparing reproduced accuracy against the
 numbers in `docs/assets/papers/ICDE_FeatureDiscovery.pdf` (Table II / Figure 4-7). `data/benchmark/datasets.csv`
 lists the paper's 8 datasets (`credit`, `steel`, `jannis`, `miniboone`, `eyemove`, `bioresponse`, `school`,
-`covertype`); only `credit` ships with this checkout.
+`covertype`); `data/benchmark/` itself is gitignored (not tracked in git — see `.gitignore`), so which of those
+actually have a runnable corpus (`table_0_0.csv` + `connections.csv`) depends on what's present locally. `school`
+is the one commonly missing; the other 7 are typically present.
 
 ```bash
 uv run python src/feature_discovery/experiments/ablation.py --dataset credit
