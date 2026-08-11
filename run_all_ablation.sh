@@ -6,20 +6,21 @@
 # the rest from running.
 #
 # Usage:
-#   ./run_all_ablation.sh [algorithm]
+#   ./run_all_ablation.sh [algorithm] [top_k]
 #
 # algorithm defaults to LR. See evaluation_algorithms.get_hyperparameters for supported values
-# (LR, RF, GBM, XT, XGB, KNN).
+# (LR, RF, GBM, XT, XGB, KNN). top_k defaults to 15 (kappa in the paper).
 
 ALGORITHM="${1:-LR}"
+TOP_K="${2:-15}"
 
-uv run python src/feature_discovery/experiments/ablation.py --dataset credit --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset steel --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset jannis --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset miniboone --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset eyemove --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset bioresponse --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset school --algorithm "$ALGORITHM"
-uv run python src/feature_discovery/experiments/ablation.py --dataset covertype --algorithm "$ALGORITHM"
+uv run python src/feature_discovery/experiments/ablation.py --dataset credit --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset steel --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset jannis --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset miniboone --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset eyemove --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset bioresponse --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset school --algorithm "$ALGORITHM" --top-k "$TOP_K"
+uv run python src/feature_discovery/experiments/ablation.py --dataset covertype --algorithm "$ALGORITHM" --top-k "$TOP_K"
 
 uv run python summarize_results.py
