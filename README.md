@@ -310,6 +310,34 @@ None of `test_baseline.py`'s paths are hardcoded — they're CLI flags, falling 
 | `--target-column-id` | `0` | Target column index |
 | `--downstream-task` | `classification` | `classification` or `regression` |
 | `--limit` | none (full graph) | Max number of lake tables to traverse from the base table, BFS-bounded over `join_paths.csv`. Use this against a large corpus (e.g. 60GB) to sample a bounded subgraph instead of scanning it all |
+| `--value-ratio` | `0.65` | Pruning threshold passed through to `AutoFeatBaseline` |
+| `--top-k` | `15` | Max ranked join-path candidates kept (κ in the paper) |
+| `--sample-size` | `3000` | Rows sampled for BFS relevance/redundancy scoring — raise this for a large real-world base table where 3000 rows may not be representative |
+| `--verbose` | off | Prints BFS candidate count, the chosen path's rank vs. its top-5 runner-ups, and per-phase timing (BFS vs. final join). Useful for sanity-checking a run against a corpus you can't just eyeball |
+| `--min-rows` | none | Exit non-zero if the result has fewer rows than this — catches a join silently collapsing/dropping most of the base table |
+| `--max-null-ratio` | none | Exit non-zero if any joined-in column's null ratio (0-1) exceeds this — catches a join that "succeeded" but only ever matched empty/NaN cells |
+
+Passing `--verbose`, `--min-rows`, or `--max-null-ratio` also prints a row/column-count and per-column
+null-coverage report for the joined-in columns after the run, e.g.:
+
+```
+[AutoFeatBaseline] join graph: 7 edges, 6 tables reachable
+[AutoFeatBaseline] BFS discovered 6 candidate join paths in 0.8s
+[AutoFeatBaseline] chosen path: rank=0.9815, tables_joined=5 (#1 of 6 by rank)
+[AutoFeatBaseline]   runner-up: rank=0.7927, tables_joined=2
+...
+[check] 1000 rows, 13 columns (9 joined in from lake tables)
+[check] highest-null joined columns:
+[check]     0.0%  table_1_1.csv.other_parties
+...
+```
+
+This is the same information a huge, unfamiliar corpus (e.g. the full webtables/open-data lake) makes impossible
+to verify by just staring at the final `polars.DataFrame` — did the join actually pull in real data, or did it
+just match on IDs that mostly don't overlap and pad everything with nulls? Did BFS even find more than one
+candidate, or is the "best" path really just the base table with nothing joined? A quick way to combine both:
+`--verbose --max-null-ratio 0.9 --min-rows <90% of the base table's row count>` catches the two most common
+"looks fine, is actually broken" failure modes (silent row loss, silent null-padding) in one run.
 
 To test against a real server layout (an actual `corpora/`/`queries/` directory tree), just point these at it —
 no code or fixture-building step required.

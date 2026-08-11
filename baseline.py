@@ -8,6 +8,7 @@ where the siblings validate it but always use the last column instead.
 """
 from __future__ import annotations
 
+import time
 import warnings
 from pathlib import Path
 from importlib import resources
@@ -30,11 +31,15 @@ class AutoFeatBaseline:
             top_k: int = 15,
             algorithm: str = "LR",
             sample_size: int = 3000,
+            verbose: bool = False,
     ) -> None:
         self.value_ratio = value_ratio
         self.top_k = top_k
         self.algorithm = algorithm
         self.sample_size = sample_size
+        # Opt-in diagnostics (candidate counts, chosen path, timing) printed to stdout.
+        # Off by default so beluga's own calls (which never pass this) are unaffected.
+        self.verbose = verbose
 
     def _read_base_table(self, config, table_dir, base_table_sep):
         """Prefer beluga's own reader; fall back to a plain CSV read when beluga isn't importable (dev/testing)."""
@@ -142,6 +147,11 @@ class AutoFeatBaseline:
             no_relevance=False,
         )
 
+        if self.verbose:
+            print(f"[AutoFeatBaseline] join graph: {len(join_paths_df)} edges, "
+                  f"{len(set(join_paths_df['from_id']) | set(join_paths_df['to_id']))} tables reachable")
+            bfs_start = time.time()
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             bfs_traversal.streaming_feature_selection(
@@ -155,11 +165,23 @@ class AutoFeatBaseline:
                 bfs_traversal.ranking.items(),
                 key=lambda r: (-float(r[1]), get_path_length(r[0]), r[0]),
             )
-            join_name, _rank = sorted_paths[0]
+            join_name, rank = sorted_paths[0]
+
+            if self.verbose:
+                print(f"[AutoFeatBaseline] BFS discovered {len(sorted_paths)} candidate join paths "
+                      f"in {time.time() - bfs_start:.1f}s")
+                print(f"[AutoFeatBaseline] chosen path: rank={rank:.4f}, "
+                      f"tables_joined={get_path_length(join_name) + 1} (#1 of {len(sorted_paths)} by rank)")
+                for name, score in sorted_paths[1:6]:
+                    print(f"[AutoFeatBaseline]   runner-up: rank={score:.4f}, "
+                          f"tables_joined={get_path_length(name) + 1}")
 
             if join_name == bfs_traversal.base_table_id:
+                if self.verbose:
+                    print("[AutoFeatBaseline] best-ranked candidate is the base table itself; no join performed")
                 return pl.from_pandas(base_table_df)
 
+            join_start = time.time()
             path_list, features = resolve_path_list(bfs_traversal, join_name)
             dataframe = join_from_path(
                 path_list,
@@ -179,5 +201,10 @@ class AutoFeatBaseline:
         if len(features) < 2:
             features = list(bfs_traversal.partial_join_selected_features[bfs_traversal.base_table_id])
             features.append(bfs_traversal.target_column)
+
+        if self.verbose:
+            print(f"[AutoFeatBaseline] materialised final join in {time.time() - join_start:.1f}s: "
+                  f"{dataframe.shape[0]} rows, {len(features)} selected columns "
+                  f"(base table had {base_table_df.shape[0]} rows, {base_table_df.shape[1]} columns)")
 
         return pl.from_pandas(dataframe[features])
