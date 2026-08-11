@@ -38,7 +38,7 @@ def main():
     join_paths.to_csv(QUERIES_DIR / "join_paths.csv", index=False)
 
     print("Base table copied to:", QUERIES_DIR / BASE_TABLE_FILE)
-    print("Join paths written to:", QUERIES_DIR / "join_paths.csv")
+    print("Joi5059n paths written to:", QUERIES_DIR / "join_paths.csv")
     print("Lake corpus copied to:", CORPUS_DIR)
     print(join_paths)
 
