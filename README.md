@@ -197,6 +197,23 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   (equally valid, per the shared algorithm) draw from the same nondeterministic traversal process, not a
   discrepancy fixable in code.
 
+  **Empirical confirmation** (BFS-only run, `bfs_result.ranking` inspected directly, no training): because
+  sibling-chaining collapses every branch into one sequential path, `streaming_feature_selection` doesn't
+  discover a *tree* of independent candidates — it discovers one growing chain, so the number of ranked
+  candidates roughly equals the number of tables in the corpus, not some combinatorial branch count. For
+  `bioresponse` (~41 tables) it found exactly 41 candidates at depths 0–40; for `jannis` (13 tables) it found
+  exactly 13 candidates at depths 0–12. `corr(rank_score, depth)` over all candidates was `0.26` (bioresponse)
+  and `0.37` (jannis) — weakly positive, not zero, confirming depth is never penalised and is if anything mildly
+  rewarded. Concretely, a depth-37 `bioresponse` candidate ranked **3rd** overall, ahead of most shallow ones.
+  For `jannis`, `top_k=15` exceeds the total candidate count (13), so *every* candidate — including the
+  full-corpus, all-13-tables chain — gets trained by `evaluate_paths` regardless of rank; whichever one has the
+  best held-out accuracy wins, and more joined columns generally helps a linear model's raw accuracy on a fixed
+  split, so the deepest chain tends to win both on rank and on accuracy. This is the same mechanism for every
+  dataset where our `tables_joined` is far higher than the paper's: it isn't top-k excluding deep candidates,
+  and it isn't a redundancy-filtering bug — it's that a single-chain BFS with a depth-agnostic rank, run against
+  a corpus small/shallow enough that `top_k` doesn't bind, will very often end up training and reporting the
+  longest chain available.
+
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.
 
