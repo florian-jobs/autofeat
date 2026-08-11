@@ -166,53 +166,33 @@ defaults are `τ=0.65, κ=15` (Section VII-B), matching the flags' defaults abov
   path as "best." `ablation.py` now re-execs itself via `subprocess.run` with `PYTHONHASHSEED` set in the real
   environment before that happens (an `os.execvpe` self-re-exec was tried first but segfaults under `uv`'s
   Windows launcher).
-- **Not a bug, but worth documenting:** BFS joins far more tables than the paper reports for some datasets
-  (e.g. `bioresponse`: ~37 tables vs. the paper's 1). This looked like a bug in `streaming_feature_selection`'s
-  per-sibling loop — it reads and writes the same shared `previous_queue` set, so each sibling neighbour joins
-  onto the *previous sibling's* result instead of the common ancestor, collapsing independent branches (e.g. a
-  table's 3 children) into one long chained path instead of exploring them separately as independent candidates.
-  A local fix (snapshotting `previous_queue` per sibling) was tried and did shrink `bioresponse`'s join count
-  from 37 to 4, much closer to the paper's 1 — but it was **reverted** after checking the upstream
-  `delftdata/autofeat` source directly: their `streaming_feature_selection` has the exact same
-  read-and-mutate-`previous_queue`-inside-the-sibling-loop structure, confirmed line-for-line (matching
-  variable names, and identical commented-out debug lines). This sequential sibling-chaining is the paper's
-  actual, shipped algorithm, not a defect in this reimplementation. The residual gap on datasets like
-  `bioresponse`/`jannis`/`covertype`/`steel` therefore isn't explained by this loop.
+- **Not a bug, but worth documenting:** BFS joins far more tables than the paper reports for some datasets (e.g.
+  `bioresponse`: ~37 tables vs. the paper's 1). `streaming_feature_selection`'s per-sibling loop reads and writes
+  one shared `previous_queue`, so each sibling neighbour chains onto the *previous sibling's* result instead of
+  branching independently from the common ancestor — collapsing what looks like a tree into one long sequential
+  path. This looks like a bug (a local fix snapshotting `previous_queue` per sibling shrank `bioresponse` from 37
+  tables to 4), but it's **not**: byte-for-byte diffed against the live upstream `delftdata/autofeat` source
+  (`autofeat.py`, `evaluate_join_paths.py`, `join_path_feature_selection.py`), including the ranking sort key and
+  the `top_k=15`/`value_ratio=0.65` defaults the paper's own authors call `ablation.py` with — all identical or
+  behaviorally equivalent. The local "fix" was reverted; nothing in this codebase diverges from upstream.
 
-  The actual mechanism: each step of the chain (i.e. each table added) gets its own `ranking` entry
-  (`compute_score` in the paper's Algorithm 2), scored only from the relevance/redundancy of the features added
-  *at that step* — the score is never normalised by how deep the chain already is. So a long chain isn't
-  penalised for its length; if each new table along the way keeps contributing decent features, the rank keeps
-  climbing the deeper it goes. For `bioresponse`'s corpus this means the deepest candidates (30+ tables) end up
-  with the *highest* ranks, so they dominate the top-`--top-k` (default 15) candidates that actually get trained,
-  and whichever of those 15 has the best test accuracy — here, the 37-table one — gets reported as the run's
-  "best" path by `summarize_results.py`.
+  The real mechanism: because BFS discovers one growing chain instead of a branching tree, the number of ranked
+  candidates roughly equals the corpus size, not some combinatorial branch count (confirmed empirically: 41
+  candidates at depths 0–40 for `bioresponse`'s ~41 tables, 13 at depths 0–12 for `jannis`'s 13 tables). Each
+  candidate's rank (`compute_score`, paper's Algorithm 2) scores only the features added *at that step*, never
+  normalised by chain depth, so long chains aren't penalised — `corr(rank, depth)` measured `0.26`–`0.37`
+  (weakly positive), and a depth-37 `bioresponse` candidate ranked 3rd overall. For smaller corpora `top_k=15`
+  doesn't even bind (`jannis` only has 13 total candidates), so every candidate — including the full-corpus
+  chain — gets trained, and whichever has the best held-out accuracy wins; more joined columns generally helps a
+  linear model's raw accuracy on a fixed split, so the deepest chain tends to win both the rank race and the
+  accuracy race.
 
-  Since which specific tables end up chained together, and in what order, depends on Python `set()`
-  iteration/pop order (i.e. the hash seed), a different seed produces a genuinely different sequence of chained
-  candidates, which can produce a different accuracy outcome and a different "winning" path — including one
-  where a shallow candidate wins instead, as the paper reports for `bioresponse`. We fixed *our* runs to be
-  internally reproducible (`PYTHONHASHSEED=42` in `ablation.py`), but have no way to know or reproduce whichever
-  seed/environment the paper's authors' original run happened to land on, so this is plausibly just a different
-  (equally valid, per the shared algorithm) draw from the same nondeterministic traversal process, not a
-  discrepancy fixable in code.
-
-  **Empirical confirmation** (BFS-only run, `bfs_result.ranking` inspected directly, no training): because
-  sibling-chaining collapses every branch into one sequential path, `streaming_feature_selection` doesn't
-  discover a *tree* of independent candidates — it discovers one growing chain, so the number of ranked
-  candidates roughly equals the number of tables in the corpus, not some combinatorial branch count. For
-  `bioresponse` (~41 tables) it found exactly 41 candidates at depths 0–40; for `jannis` (13 tables) it found
-  exactly 13 candidates at depths 0–12. `corr(rank_score, depth)` over all candidates was `0.26` (bioresponse)
-  and `0.37` (jannis) — weakly positive, not zero, confirming depth is never penalised and is if anything mildly
-  rewarded. Concretely, a depth-37 `bioresponse` candidate ranked **3rd** overall, ahead of most shallow ones.
-  For `jannis`, `top_k=15` exceeds the total candidate count (13), so *every* candidate — including the
-  full-corpus, all-13-tables chain — gets trained by `evaluate_paths` regardless of rank; whichever one has the
-  best held-out accuracy wins, and more joined columns generally helps a linear model's raw accuracy on a fixed
-  split, so the deepest chain tends to win both on rank and on accuracy. This is the same mechanism for every
-  dataset where our `tables_joined` is far higher than the paper's: it isn't top-k excluding deep candidates,
-  and it isn't a redundancy-filtering bug — it's that a single-chain BFS with a depth-agnostic rank, run against
-  a corpus small/shallow enough that `top_k` doesn't bind, will very often end up training and reporting the
-  longest chain available.
+  Which specific tables end up chained together depends on Python `set()` iteration order (the hash seed,
+  `connections.csv` gives every edge equal weight so ties lean entirely on this) — a different seed produces a
+  different chain and a different "winning" path, potentially a shallow one, as the paper reports. Our runs are
+  now internally reproducible (`PYTHONHASHSEED=42`), but we have no way to recover the paper authors' original
+  seed/environment, so the gap is plausibly just a different (equally valid) draw from the same nondeterministic
+  traversal, not something fixable in code without deviating from the paper's own algorithm.
 
 If you're comparing against results generated before these fixes, expect them to be lower, less deep, and
 possibly mislabeled by algorithm.
