@@ -88,8 +88,18 @@ class RelevanceRedundancy:
         relevant_features: List[str],
         target_column: pd.Series,
     ) -> List[tuple]:
-        selected_features_int = [i for i, value in enumerate(dataframe.columns) if value in selected_features]
-        new_features_int = [i for i, value in enumerate(dataframe.columns) if value in relevant_features]
+        # dtype=int matters even for the empty case: np.array([]) defaults to float64, and numpy
+        # refuses to use a float array for fancy indexing (dataframe[:, selected_features_int]
+        # below), raising IndexError instead of just yielding a zero-width selection.
+        selected_features_int = np.array(
+            [i for i, value in enumerate(dataframe.columns) if value in selected_features], dtype=int
+        )
+        new_features_int = np.array(
+            [i for i, value in enumerate(dataframe.columns) if value in relevant_features], dtype=int
+        )
+
+        if new_features_int.size == 0:
+            return []
 
         est = KBinsDiscretizer(strategy='uniform', encode='ordinal', random_state=42)
         try:
@@ -100,36 +110,48 @@ class RelevanceRedundancy:
         relevance = np.apply_along_axis(
             self.cached_mutual_information, 0, np.array(discr_dataframe)[:, np.array(new_features_int)], target_column
         )
-        redundancy = np.vectorize(
-            lambda free_feature: np.sum(
-                np.apply_along_axis(
-                    self.cached_mutual_information,
-                    0,
-                    np.array(discr_dataframe)[:, np.array(selected_features_int)],
-                    np.array(discr_dataframe)[:, free_feature],
-                )
-            )
-        )(new_features_int)
-
-        if self.jmi:
-            cond_dependency = np.vectorize(
+        # apply_along_axis refuses a zero-width axis outright (selected_features_int empty means
+        # nothing has been joined in yet, e.g. scoring the base table's own first hop), and the
+        # 1/size normalisation below would divide by zero in that case too -- short-circuit to "no
+        # redundancy yet" (zeros) rather than crash, since there's nothing to be redundant with.
+        if selected_features_int.size == 0:
+            redundancy = np.zeros(new_features_int.size)
+        else:
+            redundancy = np.vectorize(
                 lambda free_feature: np.sum(
                     np.apply_along_axis(
-                        self.cached_conditional_mutual_information,
+                        self.cached_mutual_information,
                         0,
-                        np.array(dataframe)[:, np.array(selected_features_int)],
-                        np.array(dataframe)[:, free_feature],
-                        target_column,
+                        np.array(discr_dataframe)[:, np.array(selected_features_int)],
+                        np.array(discr_dataframe)[:, free_feature],
                     )
                 )
-            )(np.array(new_features_int))
+            )(new_features_int)
+
+        redundancy_denom = max(selected_features_int.size, 1)
+
+        if self.jmi:
+            if selected_features_int.size == 0:
+                cond_dependency = np.zeros(new_features_int.size)
+            else:
+                cond_dependency = np.vectorize(
+                    lambda free_feature: np.sum(
+                        np.apply_along_axis(
+                            self.cached_conditional_mutual_information,
+                            0,
+                            np.array(dataframe)[:, np.array(selected_features_int)],
+                            np.array(dataframe)[:, free_feature],
+                            target_column,
+                        )
+                    )
+                )(np.array(new_features_int))
             mrmr_scores = (
                 relevance
-                - (1 / np.array(selected_features_int).size) * redundancy
-                + (1 / np.array(selected_features_int).size) * cond_dependency
+                - (1 / redundancy_denom) * redundancy
+                + (1 / redundancy_denom) * cond_dependency
             )
         else:
-            mrmr_scores = relevance - (1 / np.array(selected_features_int).size) * redundancy
+            mrmr_scores = relevance - (1 / redundancy_denom) * redundancy
 
         if np.all(np.array(mrmr_scores) == 0):
             return []
