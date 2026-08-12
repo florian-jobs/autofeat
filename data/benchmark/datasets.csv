@@ -7,3 +7,6 @@ eyemove,table_0_0.csv,eyemove,label,binary
 bioresponse,table_0_0.csv,bioresponse,target,binary
 school,base.csv,school,class,binary
 covertype,table_0_0.csv,covertype,class,binary
+concrete_compressive_strength,table_0_0.csv,concrete_compressive_strength,strength,regression
+house_sales,table_0_0.csv,house_sales,sqft_lot15,regression
+kin8nm,table_0_0.csv,kin8nm,y,regression

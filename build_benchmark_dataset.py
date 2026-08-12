@@ -1,5 +1,5 @@
 """
-Split a single wide CSV (e.g. an OpenML tabular classification dataset) into a snowflake-schema
+Split a single an OpenML tabular classification dataset into a snowflake-schema
 benchmark dataset, following the "Benchmark Setting" construction described in the AutoFeat paper
 (Section VII-A): a base table + a random tree of child tables, linked by synthetic KFK columns that
 are just the shared row-index copied along each branch (so every join is lossless and 1:1, matching
@@ -20,12 +20,14 @@ import random
 from pathlib import Path
 
 import pandas as pd
+import openml
+from numba.cuda import target
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--input", required=True, help="Path to the source CSV (a single wide OpenML-style table)")
-    parser.add_argument("--target-column", required=True, help="Label column; stays in the base table only")
-    parser.add_argument("--name", required=True, help="Dataset name; output goes to data/benchmark/<name>/")
+    parser.add_argument("--input", required=True, help="Name of OpenML dataset")
+    # parser.add_argument("--target-column", required=True, help="Label column; stays in the base table only")
+    # parser.add_argument("--name", required=True, help="Dataset name; output goes to data/benchmark/<name>/")
     parser.add_argument("--num-tables", type=int, default=6, help="Total number of tables, including the base table")
     parser.add_argument("--max-depth", type=int, default=2, help="Max tree depth below the base table")
     parser.add_argument("--min-cols-per-table", type=int, default=1, help="Minimum feature columns per non-base table")
@@ -53,11 +55,11 @@ def main():
     args = parse_args()
     rng = random.Random(args.seed)
 
-    df = pd.read_csv(args.input)
-    if args.target_column not in df.columns:
-        raise ValueError(f"--target-column {args.target_column!r} not found (columns: {list(df.columns)})")
+    df, _, _, _ = openml.datasets.get_dataset(args.input).get_data()
+    print(f"Loaded {len(df)} rows from {args.input}")
+    target_column = df.columns[-1]
 
-    feature_columns = [c for c in df.columns if c != args.target_column]
+    feature_columns = [c for c in df.columns if c != target_column]
     required_columns = (args.num_tables - 1) * args.min_cols_per_table
     if required_columns > len(feature_columns):
         raise ValueError(
@@ -82,7 +84,7 @@ def main():
     for col in shuffled[i:]:
         columns_per_table[rng.choice(node_ids)].append(col)
 
-    out_dir = Path(args.benchmark_dir) / args.name
+    out_dir = Path(args.benchmark_dir) / args.input
     out_dir.mkdir(parents=True, exist_ok=True)
 
     row_id = pd.RangeIndex(len(df))
@@ -108,7 +110,7 @@ def main():
             own_key[tid] = key_name
 
         if tid == "table_0_0":
-            table_df[args.target_column] = df[args.target_column]
+            table_df[target_column] = df[target_column]
 
         table_df.to_csv(out_dir / f"{tid}.csv", index=False)
 
@@ -125,28 +127,28 @@ def main():
 
     datasets_csv = Path(args.benchmark_dir) / "datasets.csv"
     datasets_df = pd.read_csv(datasets_csv)
-    if args.name in set(datasets_df["base_table_label"]):
-        print(f"'{args.name}' already present in {datasets_csv}, leaving it as-is.")
+    if args.input in set(datasets_df["base_table_label"]):
+        print(f"'{args.input}' already present in {datasets_csv}, leaving it as-is.")
     else:
-        target_dtype = df[args.target_column].dtype
-        target_nunique = df[args.target_column].nunique()
+        target_dtype = df[target_column].dtype
+        target_nunique = df[target_column].nunique()
         if target_nunique == 2:
             dataset_type = "binary"
         elif pd.api.types.is_numeric_dtype(target_dtype):
             dataset_type = "regression"
         else:
             raise ValueError(
-                f"--target-column {args.target_column!r} has {target_nunique} non-numeric classes; "
+                f"--target-column {target_column!r} has {target_nunique} non-numeric classes; "
                 f"only binary classification or numeric regression targets are supported "
                 f"(the paper's own benchmark datasets are all binary classification)"
             )
         new_row = pd.DataFrame([{
-            "base_table_path": args.name, "base_table_name": "table_0_0.csv",
-            "base_table_label": args.name, "target_column": args.target_column,
+            "base_table_path": args.input, "base_table_name": "table_0_0.csv",
+            "base_table_label": args.input, "target_column": target_column,
             "dataset_type": dataset_type,
         }])
         pd.concat([datasets_df, new_row], ignore_index=True).to_csv(datasets_csv, index=False)
-        print(f"Appended '{args.name}' to {datasets_csv} (dataset_type={dataset_type!r}, "
+        print(f"Appended '{args.input}' to {datasets_csv} (dataset_type={dataset_type!r}, "
               f"target dtype was {target_dtype})")
 
     print(f"\n{len(nodes)} tables written to {out_dir}/")
@@ -154,7 +156,7 @@ def main():
         cols = columns_per_table[tid]
         print(f"  {tid}.csv  (depth={depth}, parent={parent_id}, {len(cols)} feature cols)")
     print(f"connections.csv: {len(connections)} edges")
-    print(f"\nRun:\n  uv run python src/feature_discovery/experiments/ablation.py --dataset {args.name}")
+    print(f"\nRun:\n  uv run python src/feature_discovery/experiments/ablation.py --dataset {args.input}")
 
 if __name__ == "__main__":
     main()

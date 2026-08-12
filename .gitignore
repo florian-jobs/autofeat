@@ -166,6 +166,9 @@ tmp/
 assets/
 qcr_baseline.py
 arda_baseline.py
+open_ml_to_csv_test.py
+assets/
+docs/
 
 # stray pasted-image files (Claude Code drops clipboard pastes as img.png, img_1.png, ... in cwd)
 img.png
