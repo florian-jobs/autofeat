@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument("--corpora", required=True, help="Root directory to search for candidate lake tables")
     parser.add_argument("--query_column", required=True, help="Base table column to find joins on")
     parser.add_argument("--target_column", required=True, help="Base table target/label column")
-    parser.add_argument("--limit", type=int, default=20, help="Max number of candidate tables to schema-match against")
+    parser.add_argument("--limit", required=False, help="Max number of candidate tables to schema-match against")
     parser.add_argument("--threshold", type=float, default=0.55, help="Minimum Valentine similarity to accept a match")
     parser.add_argument("--sample-rows", type=int, default=5000,
                         help="Rows read from each table (base + candidates) for schema matching; keeps matching cheap on multi-million-row tables")
@@ -39,7 +39,7 @@ def parse_args():
                         help="Print each candidate's best --query_column match even if below --threshold")
     return parser.parse_args()
 
-def find_candidates(corpora_dir: Path, input_path: Path, limit: int):
+def find_candidates(corpora_dir: Path, input_path: Path, limit):
     """
     Prefer tables "near" --input: siblings under its parent directory (e.g. other tables under
     .../nyc/ if --input is .../nyc/nyc-finance-39g5-gbp3/table.csv) are far more likely to be
@@ -52,12 +52,14 @@ def find_candidates(corpora_dir: Path, input_path: Path, limit: int):
         local_scope = corpora_dir  # --input isn't nested under --corpora; no meaningful "nearby" scope
 
     nearby = sorted(p for p in local_scope.rglob("*.csv") if p.resolve() != input_resolved)
-    candidates = nearby[:limit]
-
-    if len(candidates) < limit:
-        seen = {p.resolve() for p in candidates} | {input_resolved}
-        rest = sorted(p for p in corpora_dir.rglob("*.csv") if p.resolve() not in seen)
-        candidates += rest[: limit - len(candidates)]
+    if limit is None:
+        candidates = nearby
+    else:
+        candidates = nearby[: limit]
+        if len(candidates) < limit:
+            seen = {p.resolve() for p in candidates} | {input_resolved}
+            rest = sorted(p for p in corpora_dir.rglob("*.csv") if p.resolve() not in seen)
+            candidates += rest[: limit - len(candidates)]
 
     return candidates
 

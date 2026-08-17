@@ -24,6 +24,7 @@ import sys
 # tables get chained) changes with the seed, e.g. `PYTHONHASHSEED=7 uv run python ablation.py ...`.
 if "PYTHONHASHSEED" not in os.environ:
     import subprocess
+
     env = os.environ.copy()
     env["PYTHONHASHSEED"] = "42"
     result = subprocess.run([sys.executable] + sys.argv, env=env)
@@ -133,16 +134,17 @@ def autofeat(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
+    parser = argparse.ArgumentParser(
+        description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
     parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
     parser.add_argument("--value-ratio", type=float, default=0.65)
     parser.add_argument("--top-k", type=int, default=15)
     parser.add_argument("--algorithm", default="LR")
     parser.add_argument("--sample-size", type=int, default=3000,
-                         help="Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). "
-                              "Only affects path/feature ranking, not final model training, which always "
-                              "uses the full joined table. Raising this can matter for large datasets "
-                              "(e.g. covertype) where 3000 rows is a very small fraction of the base table.")
+                        help="Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). "
+                             "Only affects path/feature ranking, not final model training, which always "
+                             "uses the full joined table. Raising this can matter for large datasets "
+                             "(e.g. covertype) where 3000 rows is a very small fraction of the base table.")
     args = parser.parse_args()
 
     init_datasets()
