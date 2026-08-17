@@ -18,7 +18,11 @@ import sys
 # environment before Python starts, which is the only place it actually takes effect. Uses
 # subprocess rather than os.execvpe(..) for the re-launch: process-image replacement via execvpe
 # was found to segfault under uv's Windows launcher.
-if os.environ.get("PYTHONHASHSEED") != "42":
+#
+# Default seed is 42, but an already-set PYTHONHASHSEED in the environment is honoured instead of
+# being overridden -- lets you explore how BFS tie-breaking (and thus which join path/how many
+# tables get chained) changes with the seed, e.g. `PYTHONHASHSEED=7 uv run python ablation.py ...`.
+if "PYTHONHASHSEED" not in os.environ:
     import subprocess
     env = os.environ.copy()
     env["PYTHONHASHSEED"] = "42"
