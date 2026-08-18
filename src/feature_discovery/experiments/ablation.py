@@ -138,7 +138,7 @@ if __name__ == "__main__":
         description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
     parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
     parser.add_argument("--value-ratio", type=float, default=0.65)
-    parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--top-k", type=int, default=15)
     parser.add_argument("--algorithm", default="LR")
     parser.add_argument("--sample-size", type=int, default=3000,
                         help="Rows sampled for BFS relevance/redundancy scoring (paper default: 3000). "
