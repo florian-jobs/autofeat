@@ -21,8 +21,8 @@ uv run python src/feature_discovery/experiments/ablation.py --dataset miniboone 
 uv run python src/feature_discovery/experiments/ablation.py --dataset eyemove --algorithm "$ALGORITHM" --top-k "$TOP_K"
 uv run python src/feature_discovery/experiments/ablation.py --dataset bioresponse --algorithm "$ALGORITHM" --top-k "$TOP_K"
 uv run python src/feature_discovery/experiments/ablation.py --dataset school --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset concrete_compressive_strength --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset house_sales --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset kin8nm --algorithm "$ALGORITHM" --top-k "$TOP_K"
+#uv run python src/feature_discovery/experiments/ablation.py --dataset concrete_compressive_strength --algorithm "$ALGORITHM" --top-k "$TOP_K"
+#uv run python src/feature_discovery/experiments/ablation.py --dataset house_sales --algorithm "$ALGORITHM" --top-k "$TOP_K"
+#uv run python src/feature_discovery/experiments/ablation.py --dataset kin8nm --algorithm "$ALGORITHM" --top-k "$TOP_K"
 
 uv run python summarize_results.py
