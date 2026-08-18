@@ -138,6 +138,9 @@ dmypy.json
 /data/*
 /data-split/*
 !/data/.keep
+!/data/benchmark/
+/data/benchmark/*
+!/data/benchmark/datasets.csv
 /experiment_results/*
 /experiments/AutogluonModels/*
 /joined-df/*
