@@ -6,6 +6,16 @@
 import os
 import sys
 
+# Must run before numpy/pandas are imported anywhere below (they trigger OpenBLAS's thread-pool
+# sizing at import time): AutoGluon's model training spawns its own worker processes internally,
+# and if each of those processes' BLAS calls grabs a thread pool sized to the core count, total
+# demanded threads exceeds OpenBLAS's hardcoded 128-thread-context build limit on many-core
+# servers (hit on hercules). Pinning to 1 thread per process forces all parallelism to come from
+# AutoGluon's/joblib's own process fan-out instead of nested BLAS thread pools. `env.copy()` below
+# (for the PYTHONHASHSEED relaunch) picks these up too, so the same fix reaches the child process.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 # `os.environ['PYTHONHASHSEED'] = '42'` elsewhere in this codebase (autofeat.py,
 # evaluation_algorithms.py) is a no-op for the *current* process: CPython reads PYTHONHASHSEED
 # exactly once, at interpreter startup, to seed str/set/dict hash randomization. Setting it from

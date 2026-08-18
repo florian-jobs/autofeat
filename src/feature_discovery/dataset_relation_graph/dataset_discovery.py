@@ -9,9 +9,8 @@ from typing import List
 # that exceeds OpenBLAS's hardcoded 128-thread-context build limit and it aborts. Pin each
 # worker's BLAS libs to a single thread so all the parallelism comes from joblib's process fan-out
 # instead of nested thread pools -- must be set before numpy is imported anywhere in the process.
-for _blas_env_var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
-                      "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
-    os.environ.setdefault(_blas_env_var, "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 import pandas as pd
 from joblib import Parallel, delayed
