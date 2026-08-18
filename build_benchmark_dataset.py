@@ -20,7 +20,6 @@ from pathlib import Path
 
 import pandas as pd
 import openml
-from numba.cuda import target
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
