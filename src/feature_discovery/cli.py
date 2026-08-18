@@ -1,5 +1,18 @@
 from typing import Optional, List
 
+# Must run before `import numpy` (below): OpenBLAS reads its thread-pool size when the library is
+# loaded, which numpy triggers on import. profile_valentine_all/profile_valentine_dataset (see
+# dataset_discovery.py) run one joblib worker *process* per CPU core (n_jobs=-1); if each of those
+# processes' BLAS calls also grabs a thread pool sized to the core count, total demanded threads
+# scales ~quadratically and exceeds OpenBLAS's hardcoded 128-thread-context build limit on
+# many-core servers (hit repeatedly on hercules). Pinning to 1 thread per process here means all
+# the parallelism comes from joblib's process fan-out instead of nested thread pools.
+import os
+
+for _blas_env_var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS",
+                      "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(_blas_env_var, "1")
+
 import numpy as np
 
 np.random.seed(42)
