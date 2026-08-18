@@ -12,8 +12,7 @@ and a row appended to data/benchmark/datasets.csv so it flows through init_datas
 
 Example:
     uv run python build_benchmark_dataset.py \\
-        --input path/to/openml_dataset.csv --target-column class \\
-        --name mydataset --num-tables 6 --max-depth 2
+        --input name_of_openml_dataset --target-column class \\
 """
 import argparse
 import random
