@@ -157,3 +157,6 @@ neo4j-data/
 paths_*.csv
 tfd/*
 *nohup*.out
+.claude/
+open_ml_to_csv_test.py
+tmp/
