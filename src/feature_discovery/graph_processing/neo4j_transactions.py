@@ -51,7 +51,12 @@ def get_relation_properties_node_name(join_paths_df: pd.DataFrame, from_id: str,
         | ((join_paths_df["from_id"] == to_id) & (join_paths_df["to_id"] == from_id))
     ]
     if "weight" in matches.columns:
-        matches = matches.sort_values("weight", ascending=False)
+        # kind="stable": pandas' default "quicksort" has no stability guarantee, which would let
+        # this reorder rows even when every weight is tied (the old ground-truth connections.csv,
+        # where every edge is weight=1) -- perturbing already-validated tie-breaking behavior for
+        # data this fix isn't meant to change at all. A stable sort leaves tied rows in their
+        # original order and only reorders genuinely different weights.
+        matches = matches.sort_values("weight", ascending=False, kind="stable")
 
     results = []
     for _, row in matches.iterrows():
