@@ -73,6 +73,46 @@ So the real, valid data point is: **37 tables joined against the authentic corpu
 
 **Related confusion: is κ (`--top-k`) 5 or 15?** Paper text states **κ=15** explicitly ("maximum selected features from a table"); upstream's class constructor default of 5 is an unused Python fallback, not what the paper's reported experiments used. `ablation.py`'s CLI default is `15`, matching the paper — this doesn't explain the joined-table deviation, but was a live source of confusion while investigating it.
 
+## Live Neo4j/Valentine ingestion (supplementary, not a fix for the gap above)
+
+`reingest_dataset.py` + `export_discovered_connections.py` restore the OG pipeline's *other* join-discovery
+mechanism: real schema matching (Valentine/Coma) into a live Neo4j instance, instead of reading a
+pre-published `connections.csv`. Useful when there's no ground-truth graph to read (a genuinely new
+dataset, or the data-lake setting) — **not** a more-authentic substitute for the ground truth above, which
+is already the real, verified-authentic paper data. Confirms rather than replaces the "Why joined-table
+counts deviate" conclusion: re-discovering bioresponse's graph this way finds **2328 edges** (41 tables) —
+~30x denser than the real 79-edge ground truth — and BFS over it still lands on 7 tables (not the paper's
+1), the same seed/traversal-order pattern, just starting from a different, denser graph.
+
+```bash
+# One-time: a disposable Neo4j instance (Community Edition works; production uses an Enterprise instance
+# with NEO4J_DATABASE=lake — Community only supports its single default db, hence the override below).
+# Needs a JRE on PATH (Valentine's Coma matcher shells out to it) and neo4j==4.4.0/valentine==0.1.6/
+# joblib==1.2.0, all already in this repo's own dependencies.
+NEO4J_HOST="bolt://localhost:7688" NEO4J_DATABASE="neo4j" uv run python reingest_dataset.py --dataset credit
+NEO4J_HOST="bolt://localhost:7688" NEO4J_DATABASE="neo4j" uv run python export_discovered_connections.py --dataset credit
+uv run python src/feature_discovery/experiments/ablation.py --dataset credit \
+    --connections data/benchmark/credit/connections_discovered.csv
+```
+
+`reingest_dataset.py --no-wipe` adds to an existing graph instead of clearing the dataset's nodes first;
+it only ever wipes nodes under `<dataset>/`, never the whole database, so it's safe to point at a shared
+instance holding other datasets' graphs too.
+
+Bugs fixed while restoring this (all pre-existing, not introduced by this rework): `ingest_data.py`/
+`dataset_discovery.py` imported functions (`merge_nodes_relation_tables`, `create_node`) that no longer
+existed once `neo4j_transactions.py` became the in-memory simulate layer — both files were silently
+unimportable; a Windows path-separator bug (`str.partition` on a literal `"/"` against `glob.glob`'s
+backslash paths) collapsed every node ID to `""`; the graph-export query compared `node.label` against
+the relationship's `from_label`/`to_label`, which are full paths, not labels — never matched; and
+`get_relation_properties_node_name` returned a matched row as-is regardless of which direction it was
+stored in, which crashes downstream on any graph with bidirectional edges (a discovered graph always has
+both directions; the ground-truth `connections.csv` never did, so this never surfaced before).
+
+Also ported: `MIN_JOIN_KEY_CARDINALITY` (`autofeat.py`) — hard-drops join keys with fewer than 3 distinct
+values, preventing the join-path blowup binary indicator columns cause (e.g. covertype's Soil_Type
+flags). Applies regardless of which graph source is in use.
+
 ## Other fixed bugs
 
 | Symptom | Cause | Fix |
@@ -94,6 +134,8 @@ So the real, valid data point is: **37 tables joined against the authentic corpu
 | `build_benchmark_dataset.py` | Splits a wide CSV into a snowflake-schema benchmark dataset under `data/benchmark/<name>/` |
 | `summarize_results.py` / `run_all_ablation.sh` | Collapse `results/thesis/*.csv` to best-per-dataset+algorithm / run every local dataset then summarize |
 | `sweep_hashseed.py` | Quantifies BFS's `PYTHONHASHSEED` sensitivity across seeds (see above) |
+| `reingest_dataset.py` / `export_discovered_connections.py` | Live Neo4j/Valentine join discovery, for datasets without a published ground-truth graph (see above) |
+| `src/feature_discovery/graph_processing/neo4j_live.py` | Driver-backed Neo4j client used by the above; `neo4j_transactions.py` stays the in-memory simulate layer `autofeat.py`/`baseline.py` depend on |
 
 `ablation.py` flags: `--dataset` (`credit`), `--value-ratio` (τ, `0.65`), `--top-k` (κ, `15`), `--algorithm`
 (`LR`/`RF`/`GBM`/`XT`/`XGB`/`KNN`), `--sample-size` (`3000`, raise for large base tables e.g. `covertype`).
