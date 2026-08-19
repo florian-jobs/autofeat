@@ -55,7 +55,10 @@ from feature_discovery.experiments.result_object import Result
 from feature_discovery.experiments.utils_dataset import filter_datasets
 
 def load_join_paths(connections_csv_path: str) -> pd.DataFrame:
-    """Read a benchmark-setting connections.csv (fk/pk columns) into the from_id/to_id shape AutoFeat expects."""
+    """Read a benchmark-setting connections.csv (fk/pk columns) into the from_id/to_id shape AutoFeat
+    expects. Preserves a real similarity `weight` column when present (e.g. connections_discovered.csv,
+    written by export_discovered_connections.py from genuine Valentine/Coma matches); defaults to a
+    flat 1 for the synthetic ground-truth connections.csv, which has no weight column of its own."""
     df = pd.read_csv(connections_csv_path)
     df = df.rename(columns={
         "fk_table": "from_id",
@@ -63,7 +66,8 @@ def load_join_paths(connections_csv_path: str) -> pd.DataFrame:
         "pk_table": "to_id",
         "pk_column": "to_column",
     })
-    df["weight"] = 1
+    if "weight" not in df.columns:
+        df["weight"] = 1
     return df
 
 def autofeat(
@@ -147,6 +151,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run AutoFeat's ablation pipeline against a data/benchmark/<dataset> table.")
     parser.add_argument("--dataset", default="credit", help="base_table_label in data/benchmark/datasets.csv")
+    parser.add_argument("--connections", default=None,
+                         help="Path to a connections CSV to feed BFS (default: data/benchmark/<dataset>/connections.csv, "
+                              "the synthetic ground-truth tree). Point this at connections_discovered.csv "
+                              "(export_discovered_connections.py) to use the real Valentine/Coma-discovered "
+                              "graph instead -- see reingest_dataset.py.")
     parser.add_argument("--value-ratio", type=float, default=0.65)
     parser.add_argument("--top-k", type=int, default=15)
     parser.add_argument("--algorithm", default="LR")
@@ -170,6 +179,6 @@ if __name__ == "__main__":
              top_k=args.top_k,
              algorithm=args.algorithm,
              sample_size=args.sample_size,
-             join_paths_df=load_join_paths(f"data/benchmark/{args.dataset}/connections.csv"),
+             join_paths_df=load_join_paths(args.connections or f"data/benchmark/{args.dataset}/connections.csv"),
              lake_data_folder=f"data/benchmark/{args.dataset}",
              base_table_sep=",")

@@ -22,5 +22,6 @@ NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASS = os.getenv("NEO4J_PASS", "autofeat")
 NEO4J_CREDENTIALS = (NEO4J_USER, NEO4J_PASS)
 
-# NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", DATASET_TYPE)
-NEO4J_DATABASE = "lake"
+# Default "lake" matches the reference/production Neo4j instance (multi-database, Enterprise).
+# Override to "neo4j" (the only database Community Edition supports) for local dev/testing.
+NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "lake")
