@@ -32,24 +32,47 @@ def get_adjacent_nodes(join_paths_df: pd.DataFrame, base_node_id: str):
 
 
 def get_relation_properties_node_name(join_paths_df: pd.DataFrame, from_id: str, to_id: str):
-    """Simulate Neo4j: return relationship properties between two nodes."""
+    """Simulate Neo4j: return relationship properties between two nodes, oriented so from_label/
+    from_column always correspond to the caller's `from_id` (the already-joined side), regardless
+    of which direction the row happens to be stored in -- a join_paths_df that stores both
+    directions of a match (independently-set from/to columns) would otherwise point the caller at
+    a column that only exists in the not-yet-joined table, crashing the join a few steps
+    downstream. A join_paths_df that only ever stores one direction per edge (parent -> child) is
+    a no-op here. Sorted by weight descending, stably: the caller (autofeat.py) picks its
+    highest_ranked_join_keys by taking a prefix of this list and stopping at the first weight that
+    differs from the first entry's, assuming descending order -- the real Neo4j backend's Cypher
+    enforces this explicitly (`ORDER BY r.weight DESC`) but this in-memory version didn't. kind=
+    "stable" so tied weights (e.g. a uniform weight=1 graph) keep their original relative order
+    instead of being reshuffled by pandas' default, non-stable quicksort."""
     matches = join_paths_df[
         ((join_paths_df["from_id"] == from_id) & (join_paths_df["to_id"] == to_id))
         | ((join_paths_df["from_id"] == to_id) & (join_paths_df["to_id"] == from_id))
     ]
+    if "weight" in matches.columns:
+        matches = matches.sort_values("weight", ascending=False, kind="stable")
 
     results = []
     for _, row in matches.iterrows():
-        props = {
-            "from_label": row["from_id"],
-            "to_label": row["to_id"],
-            "from_column": row["from_column"],
-            "to_column": row["to_column"],
-        }
+        if row["from_id"] == from_id:
+            props = {
+                "from_label": row["from_id"],
+                "to_label": row["to_id"],
+                "from_column": row["from_column"],
+                "to_column": row["to_column"],
+            }
+            pair = (row["from_id"], row["to_id"])
+        else:
+            props = {
+                "from_label": row["to_id"],
+                "to_label": row["from_id"],
+                "from_column": row["to_column"],
+                "to_column": row["from_column"],
+            }
+            pair = (row["to_id"], row["from_id"])
         if "weight" in row:
             props["weight"] = row["weight"]
 
-        results.append([props, row["from_id"], row["to_id"]])
+        results.append([props, pair[0], pair[1]])
     return results
 
 def get_node_by_id(join_paths_df: pd.DataFrame, node_id: str):

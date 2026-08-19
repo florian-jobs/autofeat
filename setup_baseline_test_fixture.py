@@ -24,16 +24,19 @@ def main():
             continue
         shutil.copy(csv_file, CORPUS_DIR / csv_file.name)
 
+    # from_table/to_table (not from_id/to_id) to match what beluga's own scripts/get_join_paths.py
+    # actually writes -- baseline.py normalizes this on load, so testing against the real column
+    # names here is what actually exercises that path instead of coincidentally bypassing it.
     connections = pd.read_csv(SOURCE / "connections.csv")
     join_paths = connections.rename(columns={
-        "fk_table": "from_id",
+        "fk_table": "from_table",
         "fk_column": "from_column",
-        "pk_table": "to_id",
+        "pk_table": "to_table",
         "pk_column": "to_column",
     })
     join_paths["weight"] = 1
-    join_paths["from_id"] = join_paths["from_id"].replace(BASE_TABLE_FILE, BASE_TABLE_NODE_ID)
-    join_paths["to_id"] = join_paths["to_id"].replace(BASE_TABLE_FILE, BASE_TABLE_NODE_ID)
+    join_paths["from_table"] = join_paths["from_table"].replace(BASE_TABLE_FILE, BASE_TABLE_NODE_ID)
+    join_paths["to_table"] = join_paths["to_table"].replace(BASE_TABLE_FILE, BASE_TABLE_NODE_ID)
 
     join_paths.to_csv(QUERIES_DIR / "join_paths.csv", index=False)
 

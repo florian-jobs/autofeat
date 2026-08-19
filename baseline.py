@@ -127,6 +127,14 @@ class AutoFeatBaseline:
 
         join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
         join_paths_df = pd.read_csv(join_paths_df_path)
+        if "from_table" in join_paths_df.columns and "from_id" not in join_paths_df.columns:
+            # beluga's own get_join_paths.py (scripts/get_join_paths.py) writes from_table/to_table,
+            # not from_id/to_id -- AutoFeat/neo4j_transactions.py expect the latter everywhere
+            # (ablation.py's ground-truth connections.csv loader and setup_baseline_test_fixture.py's
+            # fixture both rename the same way). Without this, join_paths_df['from_id'] a few lines
+            # down raises KeyError on any real beluga-generated join_paths.csv -- the local test
+            # fixture never caught this because it already writes from_id/to_id directly.
+            join_paths_df = join_paths_df.rename(columns={"from_table": "from_id", "to_table": "to_id"})
 
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
