@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -116,7 +117,14 @@ def main():
         verbose=args.verbose,
     )
     result = baseline.run(config)
-    print(result)
+    try:
+        print(result)
+    except UnicodeEncodeError:
+        # Windows console (cp1252) can't display some Unicode content in the augmented data --
+        # the pipeline already succeeded above, this is only the diagnostic print. Not an issue on
+        # the actual (Linux, UTF-8) production/beluga environment.
+        enc = sys.stdout.encoding or "ascii"
+        print(str(result).encode(enc, errors="replace").decode(enc))
 
     if args.min_rows is not None or args.max_null_ratio is not None or args.verbose:
         ok = check_correctness(result.to_pandas(), args.base_table, args)

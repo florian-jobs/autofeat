@@ -39,11 +39,19 @@ def get_relation_properties_node_name(join_paths_df: pd.DataFrame, from_id: str,
     Valentine/Coma-discovered graph (connections_discovered.csv) stores both directions of each
     match with independently-set from/to columns, and returning a row as-is when it's stored in
     the reverse direction points the caller at a column that only exists in the not-yet-joined
-    table, crashing the join a few steps downstream."""
+    table, crashing the join a few steps downstream. Sorted by weight descending: the caller
+    (autofeat.py) picks its highest_ranked_join_keys by taking a prefix of this list and stopping
+    at the first weight that differs from the first entry's, assuming descending order -- the real
+    Neo4j backend's Cypher enforces this explicitly (`ORDER BY r.weight DESC`) but this in-memory
+    version never did, which the old ground-truth connections.csv (every edge weight=1, so any
+    order looks sorted) never exposed. A real join_paths.csv with non-uniform weights needs this
+    explicit."""
     matches = join_paths_df[
         ((join_paths_df["from_id"] == from_id) & (join_paths_df["to_id"] == to_id))
         | ((join_paths_df["from_id"] == to_id) & (join_paths_df["to_id"] == from_id))
     ]
+    if "weight" in matches.columns:
+        matches = matches.sort_values("weight", ascending=False)
 
     results = []
     for _, row in matches.iterrows():
