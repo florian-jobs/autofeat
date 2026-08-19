@@ -1,5 +1,6 @@
 import glob
 import itertools
+from pathlib import Path
 from typing import List
 
 import pandas as pd
@@ -9,7 +10,7 @@ from valentine import valentine_match
 from valentine.algorithms import Coma
 
 from feature_discovery.config import DATA_FOLDER, CONNECTIONS
-from feature_discovery.graph_processing.neo4j_transactions import merge_nodes_relation_tables
+from feature_discovery.graph_processing.neo4j_live import merge_nodes_relation_tables
 
 
 def profile_valentine_all(valentine_threshold: float = 0.55):
@@ -27,11 +28,16 @@ def profile_valentine_dataset(dataset_name: str, valentine_threshold: float = 0.
 
 
 def profile_valentine_logic(files: List[str], valentine_threshold: float = 0.55):
+    root = Path(DATA_FOLDER).resolve()
+
     def profile(table_pair):
         (tab1, tab2) = table_pair
 
-        a_table_path = tab1.partition(f"{DATA_FOLDER}/")[2]
-        b_table_path = tab2.partition(f"{DATA_FOLDER}/")[2]
+        # Path.relative_to + as_posix (not partition on a literal "/") so table IDs are
+        # OS-independent -- glob.glob returns backslash paths on Windows, where a forward-slash
+        # partition never matches. Portability fix only; no behavior change on Linux.
+        a_table_path = Path(tab1).resolve().relative_to(root).as_posix()
+        b_table_path = Path(tab2).resolve().relative_to(root).as_posix()
 
         a_table_name = a_table_path.split("/")[-1]
         b_table_name = b_table_path.split("/")[-1]

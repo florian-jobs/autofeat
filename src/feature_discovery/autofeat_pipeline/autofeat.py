@@ -32,6 +32,28 @@ from feature_discovery.graph_processing.neo4j_transactions import (
 # Set PYTHONHASHSEED for deterministic hashing
 os.environ['PYTHONHASHSEED'] = '42'
 
+# Hard rule: never join on a (near-)binary column. Aurum-style joinability over datasets full of
+# binary indicator columns (e.g. covertype's ~40 Soil_Type flags) flags many binary<->binary pairs
+# as joinable under the fixed 0.55 Valentine / 0.65 value-ratio thresholds, producing a
+# combinatorial blowup of join *paths*. A binary column is never a meaningful foreign key, so we
+# drop any join candidate whose join column has at most this many distinct values. Ported from
+# upstream autofeat_og_ingestion (delftdata/autofeat); independent of the paper-fixed
+# overlap/value-ratio thresholds, so this doesn't deviate from Algorithm 1 itself.
+MIN_JOIN_KEY_CARDINALITY = 3
+
+
+def _join_column_cardinality(df, prefixed_col) -> Optional[int]:
+    """Distinct-value count of ``prefixed_col`` in ``df`` (polars or pandas); ``None`` if absent."""
+    try:
+        cols = df.columns
+        if prefixed_col not in cols:
+            return None
+        series = df[prefixed_col]
+        return int(series.n_unique()) if isinstance(df, pl.DataFrame) else int(series.nunique())
+    except Exception:
+        return None
+
+
 logging.getLogger().setLevel(logging.INFO)
 
 class AutoFeat:
@@ -217,9 +239,30 @@ class AutoFeat:
                 self.discovered.add(node)
                 logging.debug(f"Adjacent node: {node}")
 
-                # Get the join keys with the highest score
+                # Read the neighbour node (needed to check join-column cardinality before
+                # ranking the join keys).
+                right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
+                                                           table_sep=lake_table_sep, use_polars=self.use_polars)
+                logging.debug(f"\tRight table shape: {right_df.shape}")
+
+                # Get the join keys, then HARD-DROP (near-)binary join columns before ranking
+                # (see MIN_JOIN_KEY_CARDINALITY above). Filtering the full candidate list (not
+                # just the top-weight one) lets a lower-weight high-cardinality key survive when
+                # the top-weight candidate is binary.
                 join_keys = get_relation_properties_node_name(join_paths_df, from_id=base_node_id, to_id=node)
                 logging.debug(f"\tJoin keys found: {join_keys}")
+                _kept = []
+                for jk in join_keys:
+                    to_col = f"{jk[2]}.{jk[0]['to_column']}"
+                    card = _join_column_cardinality(right_df, to_col)
+                    if card is not None and card < MIN_JOIN_KEY_CARDINALITY:
+                        logging.debug(f"\tskip binary join key {to_col} (card={card})")
+                        continue
+                    _kept.append(jk)
+                join_keys = _kept
+                if len(join_keys) == 0:
+                    continue
+
                 left_table_join_key = join_keys[0][0]['from_column']
                 left_table_join_key = f"{base_node_id}.{left_table_join_key}"
 
@@ -232,11 +275,6 @@ class AutoFeat:
                             highest_ranked_join_keys.append(jk)
                         else:
                             break
-
-                # Read the neighbour node
-                right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
-                                                           table_sep=lake_table_sep, use_polars=self.use_polars)
-                logging.debug(f"\tRight table shape: {right_df.shape}")
 
                 current_queue = set()
                 logging.debug(f"\tPrevious queue: {previous_queue}")

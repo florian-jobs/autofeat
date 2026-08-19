@@ -73,6 +73,9 @@ def _get_adjacent_nodes(tx, node_id):
 
 
 def _export_all_connections(tx):
+    # n.id/m.id (not n.label/m.label) are what merge_nodes_relation_tables actually stores into
+    # r.from_label/r.to_label (the full node path, not the bare table-name label) -- matching on
+    # label here would only work when path == label, i.e. never for a nested dataset folder.
     tx_results = tx.run(
         "match (n)-[r]-(m) "
         "where n.id=r.from_label and m.id=r.to_label "
@@ -80,7 +83,7 @@ def _export_all_connections(tx):
         "split(n.id, n.label)[0] as from_path, "
         "split(m.id, m.label)[0] as to_path "
         "return from_path, n.label as from_table, r.from_column as from_column, "
-        "to_path, m.label as to_label, r.to_column as to_column"
+        "to_path, m.label as to_label, r.to_column as to_column, r.weight as weight"
     )
     return _parse_records(tx_results)
 
@@ -88,12 +91,12 @@ def _export_all_connections(tx):
 def _export_dataset_connections(tx, dataset_label):
     tx_results = tx.run(
         "match (n)-[r]-(m) "
-        "where n.id contains $dataset_label and n.label=r.from_label and m.label=r.to_label "
+        "where n.id contains $dataset_label and n.id=r.from_label and m.id=r.to_label "
         "with n, m, r, "
         "split(n.id, n.label)[0] as from_path, "
         "split(m.id, m.label)[0] as to_path "
         "return from_path, n.label as from_table, r.from_column as from_column, "
-        "to_path, m.label as to_label, r.to_column as to_column",
+        "to_path, m.label as to_label, r.to_column as to_column, r.weight as weight",
         dataset_label=dataset_label,
     )
     return _parse_records(tx_results)
@@ -110,6 +113,7 @@ def _parse_records(tx_results):
                 "to_path": record["to_path"],
                 "to_label": record["to_label"],
                 "to_column": record["to_column"],
+                "weight": record["weight"],
             }
         )
 

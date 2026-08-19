@@ -1,11 +1,20 @@
 import glob
+from pathlib import Path
 
 import pandas as pd
 
 from feature_discovery.config import CONNECTIONS, DATA_FOLDER
 from feature_discovery.dataset_relation_graph.dataset_discovery import profile_valentine_all, profile_valentine_dataset
 from feature_discovery.experiments.dataset_object import Dataset
-from feature_discovery.graph_processing.neo4j_transactions import merge_nodes_relation_tables, create_node
+from feature_discovery.graph_processing.neo4j_live import merge_nodes_relation_tables, create_node
+
+
+def _relative_table_path(f: str) -> str:
+    # Path.partition on a literal "/" breaks on Windows, where glob.glob returns backslash paths --
+    # use Path.relative_to + as_posix so table IDs are OS-independent forward-slash-joined strings
+    # (matters for local dev on Windows; the reference/production environment is Linux, where plain
+    # "/" partitioning already worked, so this is a portability fix, not a behavior change there).
+    return Path(f).resolve().relative_to(Path(DATA_FOLDER).resolve()).as_posix()
 
 
 def ingest_unprocessed_data(dataset_folder_name: str = None):
@@ -21,7 +30,7 @@ def ingest_unprocessed_data(dataset_folder_name: str = None):
     mapping = {}
 
     for f in files:
-        table_path = f.partition(f"{DATA_FOLDER}/")[2]
+        table_path = _relative_table_path(f)
         table_name = table_path.split("/")[-1]
 
         mapping[table_name] = table_path
@@ -56,7 +65,7 @@ def ingest_nodes(dataset_folder_name: str = None) -> None:
     for f in files:
         if "datasets.csv" in f:
             continue
-        table_path = f.partition(f"{DATA_FOLDER}/")[2]
+        table_path = _relative_table_path(f)
         table_name = table_path.split("/")[-1]
         create_node(table_path, table_name)
 
