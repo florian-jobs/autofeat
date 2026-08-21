@@ -2,16 +2,25 @@
 Beluga entry point for the AutoFeat baseline: wires the Neo4j-decoupled AutoFeat pipeline
 (streaming_feature_selection over join_paths.csv, then evaluate_join_paths) behind beluga's Config
 object, so beluga can run AutoFeat without knowing anything about its internals. Shaped to match the
-sibling QCRBaseline/ARDABaseline contract (duck-typed Config in, polars.DataFrame out), with the
-deviations noted inline where AutoFeat's needs differ - e.g. it validates AND uses target_column_id,
-where the siblings validate it but always use the last column instead.
+sibling ARDABaseline/QCRBaseline/COCOABaseline contract (same config extraction, same join-first/
+target-last convention, same corpus_dir/table_dir fallback), with the deviations noted inline where
+AutoFeat's needs differ from theirs.
+
+Unlike the siblings, beluga.config.schema/beluga.online.base_table are imported lazily (inside run(),
+not at module level) and only used if available: this package's own pyproject.toml caps it at
+`requires-python = ">=3.8,<3.10"` (autogluon==0.7.0 has no newer wheels), while beluga's own Config
+uses `X | None` annotations that require Python >=3.10 to even import - the two literally cannot be
+imported in the same interpreter. So this file (and the feature_discovery pipeline it wraps) is meant
+to run in AutoFeat's own venv, in a separate process from the rest of beluga - see scripts/
+augment_and_test.py's autofeat branch, which launches it that way rather than importing it directly.
+config just needs to duck-type target_column_id/downstream_task/data_dir/corpus/queries_dir/base_table
+(a real beluga Config satisfies this too, for the rare case both happen to be importable together).
 """
-from __future__ import annotations
 
 import time
 import warnings
-from pathlib import Path
 from importlib import resources
+from pathlib import Path
 
 import pandas as pd
 import polars as pl
@@ -22,110 +31,108 @@ from feature_discovery.experiments.dataset_object import CLASSIFICATION, REGRESS
 from feature_discovery.experiments.evaluate_join_paths import join_from_path, resolve_path_list
 from feature_discovery.graph_processing.neo4j_transactions import clear_df_cache
 
-class AutoFeatBaseline:
-    """Runs join-path discovery + feature selection for one beluga Config and returns the augmented base table."""
+_BASE_TABLE_SEP = ","  # matches ARDABaseline's hardcoded sep_lake=","; AutoFeat's own pipeline requires one
+
+
+class AUTOFEATBaseline:
 
     def __init__(
-            self,
-            value_ratio: float = 0.65,
-            top_k: int = 15,
-            algorithm: str = "LR",
-            sample_size: int = 3000,
-            verbose: bool = False,
+        self,
+        value_ratio: float = 0.65,
+        top_k: int = 15,
+        sample_size: int = 3_000,  # default value used in the AutoFeat implementation
+        verbose: bool = False,  # opt-in diagnostics (candidate counts, chosen path, timing) to stdout
     ) -> None:
+
         self.value_ratio = value_ratio
         self.top_k = top_k
-        self.algorithm = algorithm
         self.sample_size = sample_size
-        # Opt-in diagnostics (candidate counts, chosen path, timing) printed to stdout.
-        # Off by default so beluga's own calls (which never pass this) are unaffected.
         self.verbose = verbose
 
-    def _read_base_table(self, config, table_dir, base_table_sep):
-        """Prefer beluga's own reader; fall back to a plain CSV read when beluga isn't importable (dev/testing)."""
+    @staticmethod
+    def _toy_default(relative_path: str) -> Path:
+        """beluga's bundled toy corpus/query table, for when config.data_dir/queries_dir isn't set. Only
+        reachable if beluga happens to be importable here (see module docstring) - real usage always
+        sets data_dir/queries_dir explicitly, so this is a rarely-hit convenience fallback, not the
+        happy path."""
+        return resources.files("beluga.data").joinpath(relative_path)
+
+    @staticmethod
+    def _read_base_table(config, table_dir: Path):
+        """Returns (base_table_df: pandas.DataFrame, target_column_id: int).
+
+        Prefers beluga's own read_base_table (consolidates headers, casts dtypes, drops duplicates -
+        same as ARDABaseline/QCRBaseline/COCOABaseline) when beluga is importable; the fallback plain
+        CSV read otherwise means AutoFeat still runs correctly in its own venv (see module docstring),
+        just without that consolidation/casting.
+        """
         try:
             from beluga.online.base_table import read_base_table
         except ImportError:
-            read_base_table = None
-
-        # read base table with beluga if possible
-        if read_base_table is not None:
-            polars_df = read_base_table(config.base_table, table_dir, config)
-            return polars_df.to_pandas()
-
-        explicit_name = getattr(config, "base_table_filename", None)
-        if explicit_name:
-            base_table_path = table_dir / explicit_name
-        else:
-            csv_files = sorted(
+            base_table_path = table_dir / "table.csv" if (table_dir / "table.csv").exists() else next(
                 p for p in Path(table_dir).glob("*.csv") if p.name != "join_paths.csv"
             )
-            if len(csv_files) != 1:
-                raise ValueError(
-                    f"Cannot resolve base table file in {table_dir}: found {len(csv_files)} csv files"
-                )
-            base_table_path = csv_files[0]
+            base_table_df = pd.read_csv(base_table_path, encoding="utf8")
+            return base_table_df, config.target_column_id
 
-        return pd.read_csv(
-            base_table_path, header=0, engine="python", encoding="utf8", sep=base_table_sep,
-            quotechar=chr(34), escapechar=chr(92),
-        )
+        base_table_pl = read_base_table(config.base_table, table_dir, config)
+        base_table_df = base_table_pl.to_pandas()
+        # read_base_table already reordered columns so target is last (join-first/target-last
+        # convention) - reflect that here rather than trusting config.target_column_id's raw value.
+        return base_table_df, len(base_table_df.columns) - 1
 
-    def run(self, config=None):
-        """Duck-typed run(config) -> polars.DataFrame; raises ValueError on any invalid/unresolvable input."""
-        if config is None:  # Mirrors: config = Config() if config is None else config
-            raise ValueError("A Config instance is required")
+    def run(
+        self,
+        config=None  # duck-typed: real beluga Config, or anything exposing the same attributes - see module docstring
+    ) -> pl.DataFrame:
 
-        if not config.base_table:
-            raise ValueError("config.base_table must be set")
+        if config is None:
+            raise ValueError("A config is required (target_column_id, downstream_task, data_dir, corpus, queries_dir, base_table)")
 
-        if config.target_column_id is None:
+        if not config.target_column_id:
             raise ValueError("Value for target_column_id not specified in the configuration file")
 
-        # extract relevant config parameters from beluga config
-        if config.queries_dir is not None:
-            table_dir = Path(config.queries_dir) / config.base_table
-        else:
-            table_dir = resources.files("beluga.data").joinpath(
-                "queries/beers")  # to update with a new default base table
+        if config.downstream_task == "construction":
+            raise ValueError("Construction task not supported by AutoFeat: use 'classification' or 'regression'")
 
         if config.data_dir is not None:
             lake_data_folder = Path(config.data_dir) / config.corpus
         else:
-            lake_data_folder = resources.files("beluga.data").joinpath("corpora/toy")
+            lake_data_folder = self._toy_default("corpora/toy")
 
-        base_table_sep = getattr(config, "base_table_sep", ",")  # Needs checking. Not found in qcr/arda baselines.
+        if config.queries_dir is not None:
+            table_dir = Path(config.queries_dir) / config.base_table
+        else:
+            table_dir = self._toy_default("queries/beers")  # to update with a new default base table
 
-        # Mirrors: read_base_table(config.base_table, table_dir, config)
-        base_table_df = self._read_base_table(config, table_dir, base_table_sep)
-
-        # Unlike ARDA/QCR (which validate target_column_id is set but then always use the last
-        # column anyway), AutoFeat actually respects the configured value - a caller-specified
-        # target column is deliberately supported here (see README's regression example).
-        target_column_id = config.target_column_id
+        base_table_df, target_column_id = self._read_base_table(config, table_dir)
         target_column = base_table_df.columns[target_column_id]
+        # Move the target column last, matching ARDABaseline/QCRBaseline/COCOABaseline's convention -
+        # base_table_pd below (what actually gets written to the lake and joined against) needs this,
+        # even though AutoFeat itself looks target_column up by name, not position.
+        base_table_df = base_table_df[[c for c in base_table_df.columns if c != target_column] + [target_column]]
 
-        downstream_task = getattr(config, "downstream_task", "classification")
-        if downstream_task not in ("classification", "regression"):
-            raise ValueError(
-                f"downstream_task {downstream_task!r} not supported by AutoFeat: use 'classification' or 'regression'"
-            )
-        dataset_type = REGRESSION if downstream_task == "regression" else CLASSIFICATION
-
-        if downstream_task == "regression" and not pd.api.types.is_numeric_dtype(base_table_df[target_column]):
+        if config.downstream_task == "regression" and not pd.api.types.is_numeric_dtype(base_table_df[target_column]):
             raise ValueError(f"Target column ({target_column!r}) not numeric")
 
-        # The rest of this pipeline (resolve_path_list in particular) assumes
-        # every node id ends in ".csv" when reconstructing table names from
-        # prefixed feature names, so the materialised base table node id must
-        # follow that convention too, even though config.base_table itself may
-        # not end in .csv.
-        base_table_id = config.base_table + ".csv"
-        clear_df_cache()
-        lake_data_folder.mkdir(parents=True, exist_ok=True)
-        base_table_df.to_csv(lake_data_folder / base_table_id, index=False, sep=base_table_sep)
+        dataset_type = REGRESSION if config.downstream_task == "regression" else CLASSIFICATION
 
-        join_paths_df_path = getattr(config, "connections_csv_path", None) or str(table_dir / "join_paths.csv")
+        # The rest of this pipeline (resolve_path_list in particular) assumes every node id ends in
+        # ".csv" when reconstructing table names from prefixed feature names, so the materialised
+        # base table node id must follow that convention too, even though config.base_table itself
+        # may not end in .csv.
+        base_table_id = config.base_table + ".csv"
+        base_table_pd = base_table_df
+        clear_df_cache()
+        lake_data_folder = Path(lake_data_folder)
+        lake_data_folder.mkdir(parents=True, exist_ok=True)
+        base_table_pd.to_csv(lake_data_folder / base_table_id, index=False, sep=_BASE_TABLE_SEP)
+
+        # No leaky_features.json handling here (unlike ARDA/QCR/COCOA): AutoFeat's underlying
+        # streaming_feature_selection has no column-level exclusion hook to filter candidates
+        # through, so wiring this up would need changes to the vendored feature_discovery pipeline
+        # itself, not just this file.
+        join_paths_df_path = str(table_dir / "join_paths.csv")
         join_paths_df = pd.read_csv(join_paths_df_path)
         if "from_table" in join_paths_df.columns and "from_id" not in join_paths_df.columns:
             # beluga's own get_join_paths.py (scripts/get_join_paths.py) writes from_table/to_table,
@@ -139,7 +146,7 @@ class AutoFeatBaseline:
         bfs_traversal = AutoFeat(
             join_paths_df=join_paths_df,
             lake_data_folder=str(lake_data_folder),
-            base_table_sep=base_table_sep,
+            base_table_sep=_BASE_TABLE_SEP,
             base_table_id=base_table_id,
             base_table_label=config.base_table,
             save_joins_to_disk=True,
@@ -156,7 +163,7 @@ class AutoFeatBaseline:
         )
 
         if self.verbose:
-            print(f"[AutoFeatBaseline] join graph: {len(join_paths_df)} edges, "
+            print(f"[AUTOFEATBaseline] join graph: {len(join_paths_df)} edges, "
                   f"{len(set(join_paths_df['from_id']) | set(join_paths_df['to_id']))} tables reachable")
             bfs_start = time.time()
 
@@ -176,17 +183,17 @@ class AutoFeatBaseline:
             join_name, rank = sorted_paths[0]
 
             if self.verbose:
-                print(f"[AutoFeatBaseline] BFS discovered {len(sorted_paths)} candidate join paths "
+                print(f"[AUTOFEATBaseline] BFS discovered {len(sorted_paths)} candidate join paths "
                       f"in {time.time() - bfs_start:.1f}s")
-                print(f"[AutoFeatBaseline] chosen path: rank={rank:.4f}, "
+                print(f"[AUTOFEATBaseline] chosen path: rank={rank:.4f}, "
                       f"tables_joined={get_path_length(join_name) + 1} (#1 of {len(sorted_paths)} by rank)")
                 for name, score in sorted_paths[1:6]:
-                    print(f"[AutoFeatBaseline]   runner-up: rank={score:.4f}, "
+                    print(f"[AUTOFEATBaseline]   runner-up: rank={score:.4f}, "
                           f"tables_joined={get_path_length(name) + 1}")
 
             if join_name == bfs_traversal.base_table_id:
                 if self.verbose:
-                    print("[AutoFeatBaseline] best-ranked candidate is the base table itself; no join performed")
+                    print("[AUTOFEATBaseline] best-ranked candidate is the base table itself; no join performed")
                 return pl.from_pandas(base_table_df)
 
             join_start = time.time()
@@ -196,7 +203,7 @@ class AutoFeatBaseline:
                 join_paths_df,
                 str(lake_data_folder),
                 ",",
-                base_table_sep,
+                _BASE_TABLE_SEP,
                 bfs_traversal.base_table_id,
                 bfs_traversal.target_column,
             )
@@ -211,8 +218,19 @@ class AutoFeatBaseline:
             features.append(bfs_traversal.target_column)
 
         if self.verbose:
-            print(f"[AutoFeatBaseline] materialised final join in {time.time() - join_start:.1f}s: "
+            print(f"[AUTOFEATBaseline] materialised final join in {time.time() - join_start:.1f}s: "
                   f"{dataframe.shape[0]} rows, {len(features)} selected columns "
-                  f"(base table had {base_table_df.shape[0]} rows, {base_table_df.shape[1]} columns)")
+                  f"(base table had {base_table_pd.shape[0]} rows, {base_table_pd.shape[1]} columns)")
 
         return pl.from_pandas(dataframe[features])
+
+
+"""
+from beluga.config.loader import load_config
+
+config = load_config("config.yaml")
+
+autofeat = AUTOFEATBaseline()
+
+print(autofeat.run(config))
+"""

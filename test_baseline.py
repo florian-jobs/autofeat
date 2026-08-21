@@ -1,16 +1,17 @@
 import argparse
+import shutil
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 
-from baseline import AutoFeatBaseline
+from baseline import AUTOFEATBaseline
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run AutoFeatBaseline against a queries/corpus directory (local fixture or real server layout)."
+        description="Run AUTOFEATBaseline against a queries/corpus directory (local fixture or real server layout)."
     )
     parser.add_argument("--queries-dir", default="tmp/queries", help="Directory containing <base-table>/ with the base table CSV + join_paths.csv")
     parser.add_argument("--data-dir", default="tmp/corpus", help="Directory containing the lake corpus")
@@ -34,11 +35,14 @@ def parse_args():
     return parser.parse_args()
 
 
-def build_limited_join_paths(join_paths_path: Path, queries_dir: Path, base_table_id: str, limit: int) -> Path:
-    """Write a copy of join_paths.csv restricted to a BFS-bounded subgraph of at most `limit` tables.
+def limit_join_paths(join_paths_path: Path, base_table_id: str, limit: int) -> Path:
+    """Overwrites join_paths.csv in place, restricted to a BFS-bounded subgraph of at most `limit`
+    tables, after backing up the original alongside it (join_paths.csv.bak).
 
-    Written under `queries_dir` itself (a sibling of <base_table>/, not inside it) rather than the
-    system temp dir, so nothing leaves the directory tree the caller pointed --queries-dir at.
+    baseline.py now reads join_paths.csv from a fixed path (table_dir / "join_paths.csv"), matching
+    ARDABaseline/QCRBaseline/COCOABaseline, so there's no config field left to point it at a side
+    file - overwriting in place (like a real Config would need to see) is the only way to keep this
+    --limit sampling feature working. Returns the backup path; restore_join_paths() undoes this.
     """
     join_paths_df = pd.read_csv(join_paths_path)
 
@@ -55,11 +59,17 @@ def build_limited_join_paths(join_paths_path: Path, queries_dir: Path, base_tabl
     limited_df = join_paths_df[
         join_paths_df["from_id"].isin(visited) & join_paths_df["to_id"].isin(visited)
     ]
-    queries_dir.mkdir(parents=True, exist_ok=True)
-    limited_path = queries_dir / f"_join_paths_limit_{limit}.csv"
-    limited_df.to_csv(limited_path, index=False)
-    print(f"Limited join graph to {len(visited)} tables ({len(limited_df)} of {len(join_paths_df)} edges) -> {limited_path}")
-    return limited_path
+    backup_path = join_paths_path.with_suffix(join_paths_path.suffix + ".bak")
+    shutil.copyfile(join_paths_path, backup_path)
+    limited_df.to_csv(join_paths_path, index=False)
+    print(f"Limited join graph to {len(visited)} tables ({len(limited_df)} of {len(join_paths_df)} edges) "
+          f"-> {join_paths_path} (original backed up to {backup_path})")
+    return backup_path
+
+
+def restore_join_paths(join_paths_path: Path, backup_path: Path) -> None:
+    """Undoes limit_join_paths(): restores the original join_paths.csv from its backup."""
+    shutil.move(backup_path, join_paths_path)
 
 
 def check_correctness(result: pd.DataFrame, base_table: str, args) -> bool:
@@ -103,20 +113,24 @@ def main():
         downstream_task=args.downstream_task,
     )
 
+    join_paths_backup = None
     if args.limit is not None:
-        queries_dir = Path(args.queries_dir)
-        join_paths_path = queries_dir / args.base_table / "join_paths.csv"
+        join_paths_path = Path(args.queries_dir) / args.base_table / "join_paths.csv"
         base_table_id = args.base_table + ".csv"
-        config.connections_csv_path = str(build_limited_join_paths(join_paths_path, queries_dir, base_table_id, args.limit))
+        join_paths_backup = limit_join_paths(join_paths_path, base_table_id, args.limit)
 
-    baseline = AutoFeatBaseline(
+    baseline = AUTOFEATBaseline(
         value_ratio=args.value_ratio,
         top_k=args.top_k,
-        algorithm="LR",
         sample_size=args.sample_size,
         verbose=args.verbose,
     )
-    result = baseline.run(config)
+    try:
+        result = baseline.run(config)
+    finally:
+        if join_paths_backup is not None:
+            restore_join_paths(Path(args.queries_dir) / args.base_table / "join_paths.csv", join_paths_backup)
+
     try:
         print(result)
     except UnicodeEncodeError:

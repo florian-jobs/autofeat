@@ -86,7 +86,7 @@ So the real, valid data point is: **37 tables joined against the authentic corpu
 
 | Path | Role |
 | --- | --- |
-| `baseline.py` | `AutoFeatBaseline` — integration adapter, duck-typed `run(config) -> polars.DataFrame` |
+| `baseline.py` | `AUTOFEATBaseline` — integration adapter, `run(config: beluga.config.schema.Config) -> polars.DataFrame`, matching ARDABaseline/QCRBaseline/COCOABaseline |
 | `discover_join_paths.py` | Generates `join_paths.csv` for a base table with none yet |
 | `setup_baseline_test_fixture.py` / `test_baseline.py` | Local test fixture / server-side test runner (see above) |
 | `src/feature_discovery/autofeat_pipeline/autofeat.py` | `AutoFeat` — BFS traversal over join paths, core ranking/state |
