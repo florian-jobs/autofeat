@@ -40,6 +40,38 @@ _BASE_TABLE_SEP = ","  # matches ARDABaseline's hardcoded sep_lake=","; AutoFeat
 # only ever record edges from a base/query table to the corpus, not between corpus tables).
 _CORPUS_JOIN_PATHS_FILENAME = "join_paths.csv"
 
+# A real corpus's own join graph can be huge (hundreds of thousands of tables, easily tens of
+# millions of edges at top_k=100/table) - loading that whole graph into every single base table's
+# AutoFeat run would be far too slow/memory-heavy to run unattended over many base tables. Bounds
+# how many hops out from the base table's own direct candidates get pulled in from the corpus-wide
+# file, so each run only ever sees its own local neighbourhood.
+_MAX_CORPUS_HOPS = 3
+
+
+def _expand_corpus_join_paths(corpus_join_paths_df: pd.DataFrame, seed_tables: set, max_hops: int) -> pd.DataFrame:
+    """
+    Returns the subset of corpus_join_paths_df reachable from seed_tables within max_hops edges,
+    expanding outward one hop at a time - not the whole (potentially enormous) corpus graph.
+    """
+    visited = set(seed_tables)
+    frontier = set(seed_tables)
+    remaining = corpus_join_paths_df
+    hops = []
+    for _ in range(max_hops):
+        if not frontier or remaining.empty:
+            break
+        hop_mask = remaining["from_table"].isin(frontier) | remaining["to_table"].isin(frontier)
+        hop_edges = remaining[hop_mask]
+        if hop_edges.empty:
+            break
+        hops.append(hop_edges)
+        remaining = remaining[~hop_mask]
+        frontier = (set(hop_edges["from_table"]) | set(hop_edges["to_table"])) - visited
+        visited |= frontier
+    if not hops:
+        return corpus_join_paths_df.iloc[0:0]
+    return pd.concat(hops, ignore_index=True)
+
 
 def _materialize_lake_table(source: Path, dest: Path) -> None:
     """
@@ -196,11 +228,22 @@ class AUTOFEATBaseline:
         # discovered by scripts/get_join_paths.py. join_paths.csv (corpus-wide, if present next to
         # the corpus itself): table-to-table edges across the whole corpus, from
         # scripts/get_corpus_join_paths.py - without these, AutoFeat can only ever join one hop out
-        # from the base table, even though its own BFS supports traversing further.
-        join_paths_dfs = [pd.read_csv(table_dir / "join_paths.csv")]
+        # from the base table, even though its own BFS supports traversing further. Only the part of
+        # the corpus-wide graph within _MAX_CORPUS_HOPS of this base table's own direct candidates
+        # gets pulled in (see _expand_corpus_join_paths) - the whole thing would be far too much to
+        # load for every single base table.
+        base_join_paths_df = pd.read_csv(table_dir / "join_paths.csv")
+        if "from_table" not in base_join_paths_df.columns:
+            # get_join_paths.py found zero candidates for this base table (an empty join_paths.csv
+            # has no columns at all, since it's written from an empty DataFrame) - not fatal, just
+            # means no join for this base table unless the corpus-wide graph below adds some.
+            base_join_paths_df = pd.DataFrame(columns=["from_table", "to_table", "from_column", "to_column"])
+        join_paths_dfs = [base_join_paths_df]
         corpus_join_paths_path = corpus_dir / _CORPUS_JOIN_PATHS_FILENAME
         if corpus_join_paths_path.exists():
-            join_paths_dfs.append(pd.read_csv(corpus_join_paths_path))
+            corpus_join_paths_df = pd.read_csv(corpus_join_paths_path)
+            seed_tables = set(base_join_paths_df.get("to_table", [])) | {config.base_table}
+            join_paths_dfs.append(_expand_corpus_join_paths(corpus_join_paths_df, seed_tables, _MAX_CORPUS_HOPS))
         join_paths_df = pd.concat(join_paths_dfs, ignore_index=True)
 
         if "from_table" in join_paths_df.columns and "from_id" not in join_paths_df.columns:
