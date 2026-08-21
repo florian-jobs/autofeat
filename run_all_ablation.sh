@@ -5,6 +5,13 @@
 # script continues on to the next one -- no -e, so one missing/failing dataset doesn't stop
 # the rest from running.
 #
+# For each dataset, prefers data/benchmark/<name>/connections_discovered.csv -- the real
+# Valentine/Coma-discovered join graph written by export_discovered_connections.py (run
+# reingest_dataset.py --dataset <name> against a live Neo4j instance first, then
+# export_discovered_connections.py --dataset <name>) -- over the synthetic ground-truth
+# connections.csv tree. Falls back to connections.csv when no discovered file exists yet, so
+# this script works before the discovery pipeline has been run for every dataset.
+#
 # Usage:
 #   ./run_all_ablation.sh [algorithm] [top_k]
 #
@@ -14,15 +21,18 @@
 ALGORITHM="${1:-LR}"
 TOP_K="${2:-15}"
 
-uv run python src/feature_discovery/experiments/ablation.py --dataset credit --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset steel --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset jannis --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset miniboone --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset eyemove --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset bioresponse --algorithm "$ALGORITHM" --top-k "$TOP_K"
-uv run python src/feature_discovery/experiments/ablation.py --dataset school --algorithm "$ALGORITHM" --top-k "$TOP_K"
-#uv run python src/feature_discovery/experiments/ablation.py --dataset concrete_compressive_strength --algorithm "$ALGORITHM" --top-k "$TOP_K"
-#uv run python src/feature_discovery/experiments/ablation.py --dataset house_sales --algorithm "$ALGORITHM" --top-k "$TOP_K"
-#uv run python src/feature_discovery/experiments/ablation.py --dataset kin8nm --algorithm "$ALGORITHM" --top-k "$TOP_K"
+DATASETS=(credit steel jannis miniboone eyemove bioresponse school covertype)
+# concrete_compressive_strength house_sales kin8nm
+
+for dataset in "${DATASETS[@]}"; do
+    discovered="data/benchmark/$dataset/connections_discovered.csv"
+    if [ -f "$discovered" ]; then
+        connections="$discovered"
+    else
+        connections="data/benchmark/$dataset/connections.csv"
+    fi
+    uv run python src/feature_discovery/experiments/ablation.py \
+        --dataset "$dataset" --algorithm "$ALGORITHM" --top-k "$TOP_K" --connections "$connections"
+done
 
 uv run python summarize_results.py

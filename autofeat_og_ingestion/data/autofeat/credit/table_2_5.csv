@@ -1,0 +1,1001 @@
+Key_1_2,savings_status,purpose,credit_amount,duration,checking_status
+k812,no known savings,radio/tv,1169.0,6.0,<0
+k793,<100,radio/tv,5951.0,48.0,0<=X<200
+k872,<100,education,2096.0,12.0,no checking
+k230,<100,furniture/equipment,7882.0,42.0,<0
+k879,<100,new car,4870.0,24.0,<0
+k755,no known savings,education,9055.0,36.0,no checking
+k969,500<=X<1000,furniture/equipment,2835.0,24.0,no checking
+k229,<100,used car,6948.0,36.0,0<=X<200
+k970,>=1000,radio/tv,3059.0,12.0,no checking
+k93,<100,new car,5234.0,30.0,0<=X<200
+k16,<100,new car,1295.0,12.0,0<=X<200
+k177,<100,business,4308.0,48.0,<0
+k377,<100,radio/tv,1567.0,12.0,0<=X<200
+k660,<100,new car,1199.0,24.0,<0
+k714,<100,new car,1403.0,15.0,<0
+k821,100<=X<500,radio/tv,1282.0,24.0,<0
+k499,no known savings,radio/tv,2424.0,24.0,no checking
+k788,no known savings,business,8072.0,30.0,<0
+k734,<100,used car,12579.0,24.0,0<=X<200
+k8,500<=X<1000,radio/tv,3430.0,24.0,no checking
+k312,<100,new car,2134.0,9.0,no checking
+k380,500<=X<1000,radio/tv,2647.0,6.0,<0
+k901,<100,new car,2241.0,10.0,<0
+k91,100<=X<500,used car,1804.0,12.0,0<=X<200
+k58,no known savings,furniture/equipment,2069.0,10.0,no checking
+k917,<100,furniture/equipment,1374.0,6.0,<0
+k298,<100,radio/tv,426.0,6.0,no checking
+k359,>=1000,radio/tv,409.0,12.0,>=200
+k739,<100,radio/tv,2415.0,7.0,0<=X<200
+k178,<100,business,6836.0,60.0,<0
+k965,>=1000,business,1913.0,18.0,0<=X<200
+k240,<100,furniture/equipment,4020.0,24.0,<0
+k679,100<=X<500,new car,5866.0,18.0,0<=X<200
+k960,no known savings,business,1264.0,12.0,no checking
+k559,<100,furniture/equipment,1474.0,12.0,>=200
+k219,<100,radio/tv,4746.0,45.0,0<=X<200
+k361,<100,education,6110.0,48.0,no checking
+k81,<100,radio/tv,2100.0,18.0,>=200
+k265,<100,domestic appliance,1225.0,10.0,>=200
+k759,<100,radio/tv,458.0,9.0,0<=X<200
+k202,500<=X<1000,radio/tv,2333.0,30.0,no checking
+k291,500<=X<1000,radio/tv,1158.0,12.0,0<=X<200
+k50,<100,repairs,6204.0,18.0,0<=X<200
+k710,100<=X<500,used car,6187.0,30.0,<0
+k980,<100,used car,6143.0,48.0,<0
+k536,<100,new car,1393.0,11.0,no checking
+k530,500<=X<1000,radio/tv,2299.0,36.0,no checking
+k948,500<=X<1000,used car,1352.0,6.0,<0
+k506,<100,new car,7228.0,11.0,no checking
+k681,100<=X<500,radio/tv,2073.0,12.0,no checking
+k185,no known savings,furniture/equipment,2333.0,24.0,0<=X<200
+k841,<100,used car,5965.0,27.0,0<=X<200
+k246,<100,radio/tv,1262.0,12.0,no checking
+k840,no known savings,used car,3378.0,18.0,no checking
+k27,<100,new car,2225.0,36.0,0<=X<200
+k830,no known savings,new car,783.0,6.0,no checking
+k432,no known savings,radio/tv,6468.0,12.0,0<=X<200
+k272,<100,radio/tv,9566.0,36.0,no checking
+k475,<100,new car,1961.0,18.0,>=200
+k254,<100,furniture/equipment,6229.0,36.0,<0
+k451,<100,business,1391.0,9.0,0<=X<200
+k826,no known savings,radio/tv,1537.0,15.0,0<=X<200
+k854,<100,business,1953.0,36.0,0<=X<200
+k142,<100,business,14421.0,48.0,0<=X<200
+k268,<100,radio/tv,3181.0,24.0,no checking
+k374,no known savings,repairs,5190.0,27.0,no checking
+k454,<100,radio/tv,2171.0,12.0,no checking
+k321,>=1000,new car,1007.0,12.0,0<=X<200
+k414,<100,education,1819.0,36.0,no checking
+k416,no known savings,radio/tv,2394.0,36.0,no checking
+k554,<100,used car,8133.0,36.0,no checking
+k151,no known savings,radio/tv,730.0,7.0,no checking
+k300,<100,other,1164.0,8.0,<0
+k417,<100,business,5954.0,42.0,0<=X<200
+k433,no known savings,education,1977.0,36.0,<0
+k905,<100,used car,1526.0,12.0,<0
+k437,<100,radio/tv,3965.0,42.0,<0
+k436,<100,radio/tv,4771.0,11.0,0<=X<200
+k218,no known savings,used car,9436.0,54.0,no checking
+k607,<100,furniture/equipment,3832.0,30.0,0<=X<200
+k428,no known savings,radio/tv,5943.0,24.0,no checking
+k517,500<=X<1000,radio/tv,1213.0,15.0,no checking
+k634,100<=X<500,business,1568.0,18.0,no checking
+k280,<100,other,1755.0,24.0,<0
+k422,<100,radio/tv,2315.0,10.0,<0
+k47,<100,business,1412.0,12.0,no checking
+k538,<100,furniture/equipment,1295.0,18.0,0<=X<200
+k45,100<=X<500,education,12612.0,36.0,0<=X<200
+k993,100<=X<500,new car,2249.0,18.0,<0
+k457,<100,repairs,1108.0,12.0,<0
+k975,<100,radio/tv,618.0,12.0,no checking
+k48,<100,used car,1409.0,12.0,<0
+k284,no known savings,radio/tv,797.0,12.0,no checking
+k296,no known savings,furniture/equipment,3617.0,24.0,>=200
+k726,>=1000,new car,1318.0,12.0,0<=X<200
+k287,<100,business,15945.0,54.0,0<=X<200
+k396,no known savings,education,2012.0,12.0,no checking
+k111,100<=X<500,business,2622.0,18.0,0<=X<200
+k601,<100,radio/tv,2337.0,36.0,0<=X<200
+k415,no known savings,used car,7057.0,20.0,0<=X<200
+k99,100<=X<500,new car,1469.0,24.0,no checking
+k176,<100,radio/tv,2323.0,36.0,0<=X<200
+k958,<100,radio/tv,932.0,6.0,no checking
+k966,<100,furniture/equipment,1919.0,9.0,0<=X<200
+k372,no known savings,used car,2445.0,12.0,no checking
+k426,<100,other,11938.0,24.0,0<=X<200
+k140,<100,new car,6458.0,18.0,no checking
+k533,<100,new car,6078.0,12.0,0<=X<200
+k633,no known savings,furniture/equipment,7721.0,24.0,<0
+k741,500<=X<1000,business,1410.0,14.0,0<=X<200
+k502,100<=X<500,business,1449.0,6.0,0<=X<200
+k588,<100,education,392.0,15.0,>=200
+k67,<100,new car,6260.0,18.0,0<=X<200
+k750,<100,new car,7855.0,36.0,no checking
+k212,500<=X<1000,radio/tv,1680.0,12.0,<0
+k406,no known savings,radio/tv,3578.0,48.0,no checking
+k684,no known savings,radio/tv,7174.0,42.0,<0
+k370,no known savings,furniture/equipment,2132.0,10.0,<0
+k66,500<=X<1000,furniture/equipment,4281.0,33.0,<0
+k425,500<=X<1000,new car,2366.0,12.0,0<=X<200
+k125,<100,radio/tv,1835.0,21.0,<0
+k847,<100,used car,3868.0,24.0,no checking
+k181,<100,furniture/equipment,1768.0,12.0,no checking
+k889,<100,new car,781.0,10.0,>=200
+k57,no known savings,furniture/equipment,1924.0,18.0,0<=X<200
+k497,<100,new car,2121.0,12.0,<0
+k403,<100,radio/tv,701.0,12.0,<0
+k556,<100,repairs,639.0,12.0,0<=X<200
+k355,<100,used car,1860.0,12.0,0<=X<200
+k819,<100,new car,3499.0,12.0,<0
+k152,no known savings,new car,8487.0,48.0,0<=X<200
+k982,<100,education,6887.0,36.0,<0
+k9,<100,furniture/equipment,2708.0,15.0,no checking
+k238,<100,furniture/equipment,1984.0,18.0,no checking
+k311,100<=X<500,radio/tv,10144.0,60.0,no checking
+k220,no known savings,radio/tv,1240.0,12.0,no checking
+k842,>=1000,used car,8613.0,27.0,no checking
+k271,500<=X<1000,radio/tv,766.0,12.0,0<=X<200
+k5,no known savings,radio/tv,2728.0,15.0,0<=X<200
+k290,<100,radio/tv,1881.0,12.0,>=200
+k33,>=1000,new car,709.0,6.0,>=200
+k160,<100,radio/tv,4795.0,36.0,0<=X<200
+k995,<100,radio/tv,3416.0,27.0,<0
+k937,<100,furniture/equipment,2462.0,18.0,<0
+k275,<100,furniture/equipment,2288.0,21.0,no checking
+k483,100<=X<500,business,3566.0,48.0,0<=X<200
+k92,<100,new car,860.0,6.0,<0
+k471,100<=X<500,new car,682.0,12.0,no checking
+k862,<100,furniture/equipment,5371.0,36.0,<0
+k148,>=1000,radio/tv,1582.0,18.0,no checking
+k473,100<=X<500,radio/tv,1346.0,6.0,no checking
+k172,<100,radio/tv,1924.0,10.0,no checking
+k606,<100,radio/tv,5848.0,36.0,>=200
+k159,>=1000,used car,7758.0,24.0,0<=X<200
+k74,100<=X<500,business,6967.0,24.0,0<=X<200
+k443,<100,furniture/equipment,1282.0,12.0,<0
+k816,100<=X<500,repairs,1288.0,9.0,<0
+k334,<100,retraining,339.0,12.0,<0
+k625,100<=X<500,new car,3512.0,24.0,0<=X<200
+k825,no known savings,radio/tv,1898.0,6.0,no checking
+k341,100<=X<500,radio/tv,2872.0,24.0,no checking
+k30,<100,new car,1055.0,18.0,no checking
+k809,500<=X<1000,domestic appliance,1262.0,15.0,no checking
+k697,<100,new car,7308.0,10.0,0<=X<200
+k849,500<=X<1000,new car,909.0,36.0,no checking
+k286,500<=X<1000,furniture/equipment,2978.0,6.0,no checking
+k351,<100,furniture/equipment,1131.0,18.0,<0
+k281,>=1000,furniture/equipment,1577.0,11.0,0<=X<200
+k761,<100,furniture/equipment,3972.0,24.0,no checking
+k292,<100,business,1935.0,24.0,0<=X<200
+k512,<100,new car,950.0,15.0,<0
+k402,<100,furniture/equipment,763.0,12.0,no checking
+k349,<100,furniture/equipment,2064.0,24.0,0<=X<200
+k270,<100,radio/tv,1414.0,8.0,0<=X<200
+k347,<100,education,3414.0,21.0,<0
+k461,no known savings,used car,7485.0,30.0,no checking
+k637,<100,furniture/equipment,2577.0,12.0,<0
+k331,500<=X<1000,radio/tv,338.0,6.0,<0
+k434,<100,radio/tv,1963.0,12.0,no checking
+k277,<100,new car,571.0,21.0,<0
+k431,<100,business,9572.0,36.0,no checking
+k855,<100,business,4455.0,36.0,0<=X<200
+k747,no known savings,new car,1647.0,21.0,<0
+k103,>=1000,furniture/equipment,3777.0,24.0,no checking
+k790,<100,new car,884.0,18.0,0<=X<200
+k913,<100,radio/tv,1360.0,15.0,no checking
+k616,<100,used car,5129.0,9.0,0<=X<200
+k643,<100,new car,1175.0,16.0,0<=X<200
+k738,100<=X<500,radio/tv,674.0,12.0,<0
+k800,<100,furniture/equipment,3244.0,18.0,0<=X<200
+k482,>=1000,business,4591.0,24.0,no checking
+k203,100<=X<500,business,3844.0,48.0,0<=X<200
+k877,<100,business,3915.0,27.0,0<=X<200
+k551,<100,radio/tv,2108.0,6.0,no checking
+k544,100<=X<500,radio/tv,3031.0,45.0,0<=X<200
+k102,<100,education,1501.0,9.0,0<=X<200
+k609,<100,radio/tv,1382.0,6.0,no checking
+k404,100<=X<500,furniture/equipment,951.0,12.0,0<=X<200
+k622,no known savings,used car,2760.0,24.0,0<=X<200
+k586,<100,furniture/equipment,4297.0,18.0,0<=X<200
+k161,500<=X<1000,education,936.0,9.0,no checking
+k640,<100,new car,1168.0,12.0,<0
+k827,<100,business,5117.0,27.0,no checking
+k86,<100,retraining,902.0,12.0,<0
+k153,<100,new car,1495.0,12.0,no checking
+k981,<100,used car,10623.0,30.0,<0
+k191,<100,furniture/equipment,1935.0,12.0,no checking
+k162,<100,domestic appliance,1424.0,12.0,0<=X<200
+k516,<100,business,6568.0,24.0,<0
+k519,>=1000,used car,1413.0,12.0,no checking
+k25,no known savings,radio/tv,3074.0,9.0,no checking
+k64,no known savings,radio/tv,3835.0,36.0,no checking
+k477,<100,business,5293.0,27.0,<0
+k299,<100,business,1908.0,30.0,>=200
+k904,no known savings,radio/tv,3342.0,36.0,no checking
+k867,no known savings,retraining,932.0,6.0,0<=X<200
+k763,<100,business,3104.0,18.0,<0
+k912,<100,radio/tv,3913.0,36.0,>=200
+k274,<100,furniture/equipment,3021.0,24.0,<0
+k957,<100,new car,1364.0,10.0,no checking
+k195,<100,radio/tv,625.0,12.0,0<=X<200
+k234,no known savings,education,1200.0,12.0,<0
+k692,<100,radio/tv,707.0,12.0,no checking
+k721,no known savings,business,2978.0,24.0,no checking
+k722,<100,used car,4657.0,15.0,no checking
+k362,<100,repairs,2613.0,36.0,no checking
+k703,>=1000,radio/tv,10961.0,48.0,0<=X<200
+k772,<100,furniture/equipment,7865.0,12.0,<0
+k936,<100,radio/tv,1478.0,9.0,no checking
+k356,<100,furniture/equipment,3149.0,24.0,<0
+k364,<100,radio/tv,4210.0,36.0,>=200
+k317,500<=X<1000,new car,2507.0,9.0,no checking
+k20,100<=X<500,radio/tv,2141.0,12.0,no checking
+k864,<100,radio/tv,866.0,18.0,0<=X<200
+k23,<100,radio/tv,1544.0,4.0,no checking
+k11,<100,radio/tv,1823.0,24.0,<0
+k32,no known savings,new car,14555.0,6.0,0<=X<200
+k308,100<=X<500,business,2767.0,21.0,0<=X<200
+k860,<100,radio/tv,1291.0,12.0,no checking
+k232,<100,radio/tv,2522.0,30.0,<0
+k222,no known savings,new car,915.0,24.0,<0
+k527,<100,radio/tv,1595.0,6.0,no checking
+k367,<100,used car,4605.0,48.0,<0
+k810,<100,business,1185.0,12.0,no checking
+k43,500<=X<1000,retraining,3447.0,12.0,no checking
+k233,<100,business,1258.0,24.0,no checking
+k24,<100,radio/tv,717.0,12.0,no checking
+k708,100<=X<500,new car,1204.0,6.0,no checking
+k69,<100,furniture/equipment,1925.0,24.0,>=200
+k37,<100,radio/tv,433.0,18.0,no checking
+k717,>=1000,new car,666.0,6.0,<0
+k645,<100,furniture/equipment,2251.0,12.0,>=200
+k560,<100,new car,2150.0,30.0,0<=X<200
+k302,100<=X<500,furniture/equipment,4151.0,24.0,no checking
+k139,no known savings,furniture/equipment,2030.0,9.0,0<=X<200
+k565,no known savings,radio/tv,7418.0,60.0,0<=X<200
+k386,<100,radio/tv,2684.0,24.0,no checking
+k53,<100,radio/tv,2149.0,12.0,<0
+k935,100<=X<500,used car,3812.0,15.0,no checking
+k539,100<=X<500,radio/tv,1154.0,11.0,no checking
+k806,<100,furniture/equipment,1657.0,12.0,<0
+k123,<100,radio/tv,1603.0,24.0,<0
+k820,<100,new car,5302.0,18.0,<0
+k3,<100,education,2748.0,12.0,no checking
+k818,<100,new car,1231.0,10.0,no checking
+k324,<100,radio/tv,802.0,15.0,0<=X<200
+k14,no known savings,business,6304.0,36.0,no checking
+k387,<100,radio/tv,1533.0,24.0,no checking
+k597,<100,new car,8978.0,14.0,<0
+k744,no known savings,radio/tv,999.0,24.0,no checking
+k382,no known savings,new car,2662.0,18.0,no checking
+k269,500<=X<1000,furniture/equipment,1402.0,12.0,no checking
+k604,no known savings,new car,12169.0,48.0,0<=X<200
+k38,<100,radio/tv,3060.0,48.0,0<=X<200
+k352,<100,repairs,11998.0,30.0,<0
+k28,<100,radio/tv,2697.0,9.0,no checking
+k450,<100,radio/tv,2404.0,18.0,no checking
+k303,no known savings,furniture/equipment,1262.0,12.0,<0
+k700,<100,furniture/equipment,4611.0,6.0,no checking
+k974,100<=X<500,radio/tv,1901.0,24.0,no checking
+k706,>=1000,used car,3368.0,15.0,no checking
+k137,<100,furniture/equipment,1574.0,12.0,no checking
+k486,no known savings,radio/tv,1445.0,18.0,>=200
+k442,no known savings,furniture/equipment,1520.0,15.0,no checking
+k258,100<=X<500,new car,3878.0,24.0,0<=X<200
+k147,<100,new car,10722.0,47.0,<0
+k745,<100,used car,4788.0,48.0,<0
+k360,100<=X<500,other,7582.0,48.0,0<=X<200
+k766,<100,radio/tv,1092.0,12.0,0<=X<200
+k188,<100,radio/tv,1024.0,24.0,<0
+k977,<100,business,1076.0,12.0,no checking
+k13,<100,used car,9398.0,36.0,0<=X<200
+k942,<100,used car,6419.0,24.0,<0
+k535,<100,used car,4796.0,42.0,>=200
+k674,no known savings,business,7629.0,48.0,no checking
+k253,<100,furniture/equipment,9960.0,48.0,0<=X<200
+k42,no known savings,used car,4675.0,12.0,no checking
+k552,no known savings,new car,1287.0,10.0,no checking
+k480,<100,furniture/equipment,2515.0,18.0,no checking
+k130,>=1000,furniture/equipment,2745.0,21.0,0<=X<200
+k26,<100,new car,672.0,6.0,no checking
+k620,<100,radio/tv,3804.0,36.0,0<=X<200
+k670,no known savings,new car,1344.0,24.0,>=200
+k836,<100,new car,1038.0,10.0,<0
+k954,500<=X<1000,new car,10127.0,48.0,no checking
+k677,>=1000,furniture/equipment,1543.0,6.0,no checking
+k906,no known savings,used car,4811.0,30.0,no checking
+k915,100<=X<500,radio/tv,727.0,12.0,<0
+k96,<100,furniture/equipment,1237.0,8.0,0<=X<200
+k602,<100,new car,276.0,9.0,0<=X<200
+k106,no known savings,other,5381.0,48.0,0<=X<200
+k920,100<=X<500,furniture/equipment,5511.0,24.0,no checking
+k785,<100,furniture/equipment,3749.0,24.0,>=200
+k227,<100,new car,685.0,12.0,0<=X<200
+k617,no known savings,new car,1494.0,4.0,>=200
+k295,<100,furniture/equipment,2746.0,36.0,<0
+k866,<100,furniture/equipment,708.0,12.0,<0
+k578,no known savings,furniture/equipment,4351.0,24.0,0<=X<200
+k646,<100,education,701.0,12.0,no checking
+k953,<100,furniture/equipment,3643.0,15.0,<0
+k163,<100,new car,4249.0,30.0,0<=X<200
+k462,<100,radio/tv,1938.0,24.0,<0
+k305,<100,used car,2910.0,24.0,<0
+k236,>=1000,furniture/equipment,2659.0,18.0,<0
+k566,<100,new car,1028.0,18.0,no checking
+k859,<100,new car,3398.0,8.0,<0
+k323,no known savings,furniture/equipment,5801.0,12.0,no checking
+k468,>=1000,new car,1525.0,24.0,no checking
+k405,<100,radio/tv,4473.0,36.0,>=200
+k765,<100,radio/tv,1068.0,6.0,0<=X<200
+k619,<100,used car,6615.0,24.0,<0
+k978,100<=X<500,education,1864.0,18.0,no checking
+k882,100<=X<500,new car,7408.0,60.0,0<=X<200
+k154,100<=X<500,used car,11590.0,48.0,no checking
+k366,<100,furniture/equipment,4110.0,24.0,<0
+k792,<100,furniture/equipment,3384.0,6.0,<0
+k990,<100,radio/tv,2101.0,13.0,0<=X<200
+k822,no known savings,domestic appliance,1275.0,15.0,<0
+k593,<100,furniture/equipment,4169.0,24.0,<0
+k282,<100,furniture/equipment,1521.0,10.0,0<=X<200
+k865,<100,education,5743.0,24.0,0<=X<200
+k932,<100,furniture/equipment,3599.0,21.0,<0
+k545,500<=X<1000,radio/tv,3213.0,18.0,0<=X<200
+k449,<100,business,4439.0,18.0,0<=X<200
+k627,<100,new car,3949.0,10.0,>=200
+k833,<100,radio/tv,1459.0,15.0,no checking
+k985,<100,radio/tv,882.0,13.0,0<=X<200
+k419,500<=X<1000,radio/tv,3758.0,24.0,0<=X<200
+k526,100<=X<500,business,1743.0,6.0,no checking
+k120,>=1000,education,1136.0,9.0,0<=X<200
+k456,<100,domestic appliance,1236.0,9.0,no checking
+k631,<100,furniture/equipment,959.0,9.0,0<=X<200
+k354,no known savings,used car,3229.0,18.0,no checking
+k680,<100,radio/tv,6199.0,12.0,<0
+k75,500<=X<1000,education,727.0,10.0,no checking
+k430,<100,new car,1246.0,24.0,0<=X<200
+k214,no known savings,radio/tv,2331.0,12.0,no checking
+k221,<100,radio/tv,4463.0,36.0,no checking
+k7,<100,radio/tv,776.0,12.0,no checking
+k210,<100,furniture/equipment,2406.0,30.0,<0
+k776,no known savings,education,1239.0,18.0,0<=X<200
+k664,no known savings,radio/tv,3399.0,12.0,>=200
+k19,<100,new car,2247.0,12.0,>=200
+k890,<100,furniture/equipment,1766.0,6.0,no checking
+k424,<100,furniture/equipment,2473.0,18.0,<0
+k729,<100,business,1542.0,12.0,no checking
+k963,<100,used car,3850.0,18.0,no checking
+k778,<100,furniture/equipment,3650.0,18.0,<0
+k429,<100,furniture/equipment,3446.0,36.0,<0
+k550,<100,furniture/equipment,3001.0,18.0,0<=X<200
+k796,no known savings,new car,3079.0,36.0,no checking
+k193,<100,radio/tv,6070.0,18.0,no checking
+k939,<100,furniture/equipment,2146.0,10.0,no checking
+k420,no known savings,new car,13756.0,60.0,no checking
+k65,100<=X<500,other,14782.0,60.0,0<=X<200
+k138,<100,business,7685.0,48.0,<0
+k887,<100,radio/tv,2320.0,18.0,no checking
+k667,no known savings,radio/tv,846.0,7.0,no checking
+k824,<100,new car,14318.0,36.0,0<=X<200
+k129,100<=X<500,new car,362.0,6.0,no checking
+k834,no known savings,furniture/equipment,2212.0,20.0,<0
+k797,<100,used car,12976.0,18.0,0<=X<200
+k145,no known savings,new car,1283.0,22.0,no checking
+k986,<100,new car,1330.0,12.0,>=200
+k448,100<=X<500,business,4272.0,30.0,no checking
+k170,<100,radio/tv,2238.0,18.0,no checking
+k642,no known savings,radio/tv,1126.0,18.0,no checking
+k10,<100,furniture/equipment,7374.0,18.0,0<=X<200
+k999,500<=X<1000,business,2326.0,15.0,0<=X<200
+k652,<100,business,1449.0,9.0,no checking
+k435,<100,new car,1820.0,18.0,no checking
+k605,>=1000,furniture/equipment,983.0,12.0,0<=X<200
+k401,<100,new car,3249.0,36.0,<0
+k144,<100,radio/tv,1957.0,6.0,<0
+k208,<100,furniture/equipment,2406.0,9.0,no checking
+k365,100<=X<500,education,11760.0,39.0,0<=X<200
+k174,<100,furniture/equipment,2578.0,12.0,<0
+k156,<100,furniture/equipment,2348.0,36.0,<0
+k770,<100,new car,1223.0,12.0,0<=X<200
+k757,>=1000,radio/tv,1516.0,24.0,no checking
+k337,<100,radio/tv,1473.0,18.0,no checking
+k6,no known savings,business,1887.0,18.0,0<=X<200
+k409,<100,business,8648.0,24.0,no checking
+k390,<100,new car,802.0,14.0,no checking
+k781,no known savings,new car,2899.0,18.0,0<=X<200
+k751,<100,radio/tv,2039.0,24.0,0<=X<200
+k149,no known savings,used car,2197.0,24.0,no checking
+k661,<100,radio/tv,1053.0,15.0,<0
+k44,500<=X<1000,radio/tv,3235.0,24.0,no checking
+k845,500<=X<1000,new car,939.0,12.0,>=200
+k655,<100,radio/tv,1967.0,24.0,0<=X<200
+k768,<100,used car,7253.0,33.0,no checking
+k886,<100,business,2292.0,12.0,no checking
+k399,500<=X<1000,new car,1597.0,10.0,no checking
+k363,no known savings,new car,1381.0,24.0,<0
+k580,<100,used car,5842.0,36.0,no checking
+k979,<100,new car,2579.0,12.0,<0
+k671,no known savings,education,8471.0,18.0,<0
+k109,500<=X<1000,new car,2782.0,21.0,no checking
+k49,no known savings,new car,1042.0,18.0,0<=X<200
+k105,>=1000,new car,3186.0,15.0,no checking
+k615,no known savings,used car,2028.0,12.0,0<=X<200
+k801,<100,new car,958.0,12.0,0<=X<200
+k871,100<=X<500,furniture/equipment,1591.0,21.0,no checking
+k807,no known savings,furniture/equipment,2762.0,12.0,0<=X<200
+k563,<100,used car,2779.0,18.0,0<=X<200
+k558,<100,radio/tv,2743.0,28.0,no checking
+k184,>=1000,radio/tv,1149.0,18.0,no checking
+k576,<100,furniture/equipment,1313.0,9.0,no checking
+k500,<100,repairs,1190.0,18.0,<0
+k712,<100,business,3448.0,5.0,no checking
+k693,<100,other,11328.0,24.0,0<=X<200
+k315,<100,furniture/equipment,1872.0,6.0,<0
+k964,<100,repairs,2058.0,24.0,no checking
+k379,<100,furniture/equipment,2136.0,9.0,<0
+k639,no known savings,radio/tv,1484.0,12.0,0<=X<200
+k381,500<=X<1000,repairs,660.0,6.0,no checking
+k76,>=1000,new car,1287.0,24.0,no checking
+k285,<100,repairs,3394.0,42.0,<0
+k249,<100,business,609.0,12.0,>=200
+k992,<100,new car,1884.0,12.0,no checking
+k55,<100,furniture/equipment,1620.0,12.0,<0
+k537,<100,other,2629.0,20.0,0<=X<200
+k696,<100,education,719.0,12.0,no checking
+k884,<100,furniture/equipment,5096.0,48.0,0<=X<200
+k839,no known savings,education,1244.0,9.0,no checking
+k248,<100,new car,1842.0,36.0,<0
+k728,<100,radio/tv,2576.0,7.0,0<=X<200
+k709,no known savings,furniture/equipment,1424.0,12.0,>=200
+k923,>=1000,repairs,1512.0,15.0,0<=X<200
+k215,no known savings,used car,11054.0,36.0,no checking
+k294,<100,radio/tv,518.0,6.0,no checking
+k283,<100,furniture/equipment,2759.0,12.0,no checking
+k599,<100,used car,2670.0,24.0,no checking
+k335,<100,new car,4817.0,24.0,<0
+k838,<100,used car,2679.0,24.0,no checking
+k542,<100,new car,3905.0,11.0,<0
+k628,<100,used car,3386.0,12.0,<0
+k843,<100,domestic appliance,343.0,6.0,<0
+k52,<100,radio/tv,4594.0,18.0,no checking
+k344,<100,furniture/equipment,3620.0,36.0,<0
+k629,<100,new car,1721.0,15.0,<0
+k319,<100,furniture/equipment,3017.0,12.0,0<=X<200
+k225,no known savings,retraining,754.0,12.0,0<=X<200
+k600,<100,business,1950.0,18.0,no checking
+k267,<100,used car,2924.0,24.0,<0
+k329,<100,radio/tv,1659.0,24.0,<0
+k143,no known savings,radio/tv,7238.0,48.0,no checking
+k850,<100,business,2764.0,33.0,no checking
+k114,<100,used car,4679.0,24.0,no checking
+k127,100<=X<500,radio/tv,3092.0,24.0,0<=X<200
+k200,<100,education,448.0,6.0,<0
+k896,<100,new car,654.0,9.0,<0
+k175,no known savings,retraining,1238.0,6.0,no checking
+k583,<100,radio/tv,1245.0,18.0,0<=X<200
+k543,<100,furniture/equipment,3114.0,18.0,<0
+k591,500<=X<1000,used car,2569.0,39.0,no checking
+k673,<100,radio/tv,5152.0,24.0,>=200
+k758,100<=X<500,business,1037.0,12.0,0<=X<200
+k532,<100,furniture/equipment,1478.0,15.0,<0
+k568,<100,radio/tv,3573.0,12.0,0<=X<200
+k897,<100,new car,1201.0,24.0,0<=X<200
+k944,>=1000,furniture/equipment,3622.0,30.0,<0
+k727,>=1000,furniture/equipment,960.0,15.0,no checking
+k194,500<=X<1000,new car,1163.0,12.0,no checking
+k594,<100,new car,1209.0,6.0,0<=X<200
+k746,<100,radio/tv,3077.0,12.0,no checking
+k332,<100,new car,3757.0,24.0,no checking
+k737,100<=X<500,new car,1418.0,10.0,no checking
+k263,<100,new car,3518.0,6.0,no checking
+k465,<100,radio/tv,1934.0,12.0,no checking
+k987,<100,business,8318.0,27.0,0<=X<200
+k264,100<=X<500,radio/tv,1237.0,6.0,no checking
+k445,no known savings,radio/tv,368.0,6.0,0<=X<200
+k894,<100,new car,2122.0,12.0,<0
+k304,no known savings,furniture/equipment,2996.0,24.0,<0
+k407,100<=X<500,furniture/equipment,9034.0,36.0,0<=X<200
+k760,<100,furniture/equipment,1585.0,24.0,no checking
+k306,<100,radio/tv,1301.0,18.0,0<=X<200
+k925,100<=X<500,new car,1323.0,6.0,>=200
+k665,<100,new car,3123.0,24.0,<0
+k118,<100,used car,5493.0,36.0,<0
+k553,100<=X<500,radio/tv,1126.0,9.0,>=200
+k124,100<=X<500,radio/tv,1216.0,24.0,0<=X<200
+k946,<100,new car,1207.0,24.0,<0
+k702,no known savings,new car,1309.0,10.0,no checking
+k959,500<=X<1000,used car,2360.0,15.0,>=200
+k167,100<=X<500,new car,6850.0,15.0,0<=X<200
+k383,<100,radio/tv,1413.0,24.0,no checking
+k638,100<=X<500,used car,8588.0,39.0,no checking
+k310,<100,new car,759.0,12.0,<0
+k595,<100,used car,4686.0,36.0,no checking
+k231,<100,business,2687.0,15.0,>=200
+k293,<100,radio/tv,585.0,12.0,0<=X<200
+k165,no known savings,new car,2255.0,24.0,no checking
+k247,<100,new car,609.0,6.0,<0
+k927,<100,new car,1361.0,6.0,<0
+k817,<100,furniture/equipment,7127.0,36.0,no checking
+k494,100<=X<500,new car,1203.0,6.0,<0
+k931,no known savings,radio/tv,700.0,6.0,no checking
+k774,<100,repairs,5507.0,24.0,no checking
+k775,<100,radio/tv,3190.0,18.0,<0
+k752,<100,furniture/equipment,7119.0,48.0,<0
+k78,100<=X<500,used car,3488.0,24.0,no checking
+k968,<100,radio/tv,1113.0,18.0,0<=X<200
+k107,<100,used car,7966.0,26.0,0<=X<200
+k73,100<=X<500,education,1532.0,15.0,no checking
+k309,<100,radio/tv,1503.0,4.0,no checking
+k832,<100,radio/tv,2302.0,36.0,<0
+k658,<100,new car,662.0,6.0,<0
+k320,<100,education,2273.0,36.0,0<=X<200
+k392,100<=X<500,new car,2631.0,15.0,0<=X<200
+k933,<100,used car,1503.0,12.0,no checking
+k874,100<=X<500,radio/tv,1311.0,24.0,no checking
+k688,no known savings,radio/tv,3105.0,24.0,no checking
+k252,<100,education,2319.0,21.0,>=200
+k501,no known savings,new car,1374.0,6.0,<0
+k649,<100,furniture/equipment,3612.0,18.0,0<=X<200
+k731,<100,new car,7763.0,48.0,<0
+k297,<100,furniture/equipment,3049.0,18.0,>=200
+k848,<100,radio/tv,1534.0,12.0,0<=X<200
+k924,<100,new car,2032.0,24.0,no checking
+k572,no known savings,furniture/equipment,6350.0,30.0,<0
+k585,<100,furniture/equipment,2864.0,18.0,>=200
+k870,<100,new car,1255.0,12.0,no checking
+k984,<100,new car,1333.0,24.0,<0
+k656,<100,new car,2022.0,24.0,no checking
+k22,<100,radio/tv,1552.0,24.0,no checking
+k261,<100,radio/tv,626.0,12.0,<0
+k815,no known savings,used car,8858.0,48.0,no checking
+k598,no known savings,repairs,996.0,12.0,no checking
+k803,500<=X<1000,radio/tv,1750.0,6.0,no checking
+k189,<100,radio/tv,6999.0,48.0,<0
+k973,100<=X<500,new car,1995.0,12.0,0<=X<200
+k513,<100,education,1199.0,9.0,0<=X<200
+k724,<100,radio/tv,1331.0,12.0,0<=X<200
+k90,100<=X<500,new car,2278.0,18.0,0<=X<200
+k898,no known savings,new car,5003.0,21.0,no checking
+k856,<100,furniture/equipment,3552.0,24.0,<0
+k919,<100,furniture/equipment,1928.0,18.0,0<=X<200
+k878,no known savings,used car,2964.0,24.0,<0
+k662,<100,radio/tv,1546.0,24.0,<0
+k357,<100,radio/tv,683.0,6.0,>=200
+k216,no known savings,new car,12389.0,36.0,0<=X<200
+k574,no known savings,business,4712.0,24.0,0<=X<200
+k786,100<=X<500,radio/tv,1553.0,24.0,0<=X<200
+k173,<100,new car,1372.0,12.0,<0
+k988,>=1000,radio/tv,2578.0,24.0,no checking
+k257,no known savings,radio/tv,3979.0,48.0,0<=X<200
+k789,<100,radio/tv,6758.0,48.0,<0
+k376,<100,furniture/equipment,3234.0,24.0,<0
+k115,<100,radio/tv,5954.0,30.0,no checking
+k511,no known savings,used car,5433.0,24.0,no checking
+k333,<100,business,806.0,15.0,<0
+k893,<100,radio/tv,1082.0,9.0,0<=X<200
+k907,<100,furniture/equipment,2788.0,15.0,no checking
+k113,<100,radio/tv,2930.0,12.0,0<=X<200
+k411,no known savings,education,1927.0,24.0,no checking
+k787,<100,new car,2820.0,36.0,0<=X<200
+k547,<100,retraining,937.0,24.0,no checking
+k41,<100,new car,1056.0,18.0,0<=X<200
+k133,<100,new car,3124.0,12.0,0<=X<200
+k350,<100,furniture/equipment,1388.0,9.0,no checking
+k2,<100,repairs,2384.0,36.0,0<=X<200
+k180,no known savings,new car,2133.0,12.0,no checking
+k603,<100,furniture/equipment,2039.0,18.0,<0
+k918,<100,new car,2799.0,9.0,<0
+k858,<100,furniture/equipment,1289.0,12.0,<0
+k686,<100,domestic appliance,1217.0,18.0,<0
+k68,<100,furniture/equipment,2246.0,12.0,<0
+k707,<100,radio/tv,385.0,12.0,<0
+k207,no known savings,new car,1965.0,24.0,0<=X<200
+k339,>=1000,business,1572.0,21.0,no checking
+k182,<100,new car,2718.0,24.0,0<=X<200
+k313,no known savings,other,1358.0,24.0,<0
+k771,100<=X<500,new car,931.0,6.0,0<=X<200
+k938,<100,new car,1442.0,24.0,<0
+k962,<100,business,4241.0,24.0,0<=X<200
+k217,<100,new car,2775.0,18.0,no checking
+k141,<100,business,3863.0,24.0,no checking
+k84,<100,radio/tv,2329.0,7.0,0<=X<200
+k439,<100,furniture/equipment,918.0,9.0,0<=X<200
+k87,<100,education,1837.0,24.0,0<=X<200
+k17,<100,furniture/equipment,3349.0,36.0,no checking
+k327,<100,furniture/equipment,1275.0,10.0,>=200
+k941,500<=X<1000,furniture/equipment,2828.0,24.0,<0
+k378,<100,business,4526.0,24.0,no checking
+k569,100<=X<500,radio/tv,2671.0,36.0,0<=X<200
+k767,<100,radio/tv,2051.0,18.0,no checking
+k314,no known savings,used car,1300.0,15.0,no checking
+k158,100<=X<500,domestic appliance,741.0,12.0,<0
+k541,100<=X<500,new car,1240.0,10.0,>=200
+k795,>=1000,radio/tv,3357.0,21.0,<0
+k122,<100,used car,3632.0,24.0,<0
+k467,<100,furniture/equipment,1808.0,18.0,no checking
+k385,no known savings,business,12204.0,48.0,0<=X<200
+k976,no known savings,radio/tv,9157.0,60.0,0<=X<200
+k375,<100,new car,3676.0,6.0,<0
+k587,100<=X<500,furniture/equipment,3441.0,30.0,0<=X<200
+k567,<100,new car,640.0,12.0,no checking
+k589,<100,business,3652.0,21.0,0<=X<200
+k881,<100,new car,1530.0,18.0,no checking
+k223,no known savings,business,3914.0,48.0,no checking
+k12,<100,furniture/equipment,1858.0,12.0,<0
+k663,<100,radio/tv,2600.0,18.0,<0
+k155,no known savings,radio/tv,1979.0,15.0,no checking
+k873,<100,furniture/equipment,2116.0,6.0,>=200
+k423,100<=X<500,new car,1437.0,9.0,0<=X<200
+k209,500<=X<1000,furniture/equipment,4042.0,42.0,no checking
+k805,no known savings,education,3832.0,9.0,no checking
+k540,<100,radio/tv,3660.0,24.0,<0
+k895,<100,furniture/equipment,1553.0,18.0,<0
+k647,no known savings,radio/tv,1444.0,15.0,0<=X<200
+k389,<100,furniture/equipment,1980.0,9.0,no checking
+k934,<100,new car,1355.0,24.0,0<=X<200
+k531,<100,education,1393.0,12.0,no checking
+k446,500<=X<1000,radio/tv,1376.0,24.0,no checking
+k418,<100,radio/tv,15653.0,60.0,no checking
+k255,<100,radio/tv,1493.0,12.0,no checking
+k571,<100,radio/tv,4370.0,42.0,<0
+k754,<100,education,750.0,18.0,<0
+k524,<100,repairs,1308.0,15.0,0<=X<200
+k769,100<=X<500,education,4623.0,15.0,no checking
+k104,<100,radio/tv,1851.0,24.0,no checking
+k237,<100,radio/tv,1880.0,18.0,<0
+k470,no known savings,business,7980.0,36.0,no checking
+k241,<100,furniture/equipment,4583.0,30.0,<0
+k675,500<=X<1000,new car,1386.0,12.0,no checking
+k98,<100,new car,947.0,24.0,>=200
+k368,<100,education,684.0,12.0,<0
+k991,<100,education,7476.0,48.0,<0
+k464,<100,furniture/equipment,1922.0,12.0,0<=X<200
+k330,<100,new car,2303.0,24.0,<0
+k228,100<=X<500,new car,8086.0,36.0,0<=X<200
+k636,<100,used car,2346.0,24.0,no checking
+k570,<100,new car,3973.0,14.0,<0
+k63,<100,new car,888.0,12.0,0<=X<200
+k753,no known savings,radio/tv,10222.0,48.0,no checking
+k548,<100,business,4221.0,30.0,0<=X<200
+k730,<100,furniture/equipment,6361.0,18.0,0<=X<200
+k345,<100,radio/tv,1297.0,12.0,>=200
+k183,no known savings,new car,900.0,12.0,<0
+k669,<100,furniture/equipment,2241.0,21.0,no checking
+k945,<100,furniture/equipment,1050.0,6.0,0<=X<200
+k682,<100,education,1047.0,6.0,>=200
+k720,<100,other,6314.0,24.0,no checking
+k528,>=1000,furniture/equipment,3496.0,30.0,0<=X<200
+k94,<100,business,3609.0,48.0,no checking
+k71,<100,new car,4843.0,12.0,<0
+k289,<100,radio/tv,3017.0,30.0,>=200
+k748,100<=X<500,business,4139.0,24.0,no checking
+k902,100<=X<500,business,5742.0,36.0,no checking
+k440,<100,new car,10366.0,60.0,no checking
+k814,500<=X<1000,new car,2080.0,6.0,no checking
+k718,500<=X<1000,business,2580.0,21.0,no checking
+k62,<100,radio/tv,4530.0,30.0,no checking
+k171,<100,furniture/equipment,5150.0,24.0,no checking
+k226,100<=X<500,radio/tv,5595.0,72.0,0<=X<200
+k478,<100,radio/tv,2384.0,24.0,<0
+k413,<100,radio/tv,1453.0,18.0,no checking
+k40,<100,education,1538.0,6.0,no checking
+k505,no known savings,radio/tv,2279.0,12.0,no checking
+k395,<100,radio/tv,1478.0,15.0,no checking
+k951,<100,radio/tv,5103.0,24.0,no checking
+k683,100<=X<500,business,9857.0,36.0,0<=X<200
+k239,no known savings,new car,6527.0,60.0,no checking
+k1,no known savings,radio/tv,1347.0,10.0,>=200
+k336,100<=X<500,new car,2862.0,36.0,0<=X<200
+k930,100<=X<500,radio/tv,2753.0,9.0,no checking
+k892,>=1000,new car,3651.0,12.0,<0
+k46,<100,furniture/equipment,975.0,15.0,<0
+k736,100<=X<500,repairs,2631.0,15.0,0<=X<200
+k852,100<=X<500,radio/tv,2896.0,24.0,0<=X<200
+k716,no known savings,new car,4716.0,6.0,<0
+k823,<100,radio/tv,2284.0,24.0,no checking
+k243,500<=X<1000,used car,1236.0,6.0,no checking
+k828,<100,radio/tv,1103.0,12.0,0<=X<200
+k503,<100,new car,926.0,12.0,no checking
+k39,<100,radio/tv,1800.0,18.0,no checking
+k205,<100,education,1905.0,15.0,>=200
+k668,500<=X<1000,furniture/equipment,1123.0,12.0,no checking
+k529,<100,used car,6331.0,48.0,<0
+k573,100<=X<500,radio/tv,1377.0,24.0,>=200
+k922,100<=X<500,business,2503.0,30.0,0<=X<200
+k326,<100,business,2528.0,27.0,0<=X<200
+k273,500<=X<1000,new car,5324.0,15.0,no checking
+k641,100<=X<500,new car,6560.0,48.0,0<=X<200
+k316,<100,furniture/equipment,2969.0,12.0,0<=X<200
+k119,<100,radio/tv,1206.0,9.0,0<=X<200
+k256,<100,radio/tv,2118.0,9.0,0<=X<200
+k89,500<=X<1000,radio/tv,629.0,18.0,no checking
+k495,<100,education,1198.0,6.0,<0
+k983,no known savings,used car,2476.0,21.0,no checking
+k393,<100,radio/tv,1138.0,9.0,<0
+k868,<100,new car,14027.0,60.0,0<=X<200
+k110,no known savings,used car,7596.0,30.0,no checking
+k134,no known savings,radio/tv,3077.0,30.0,no checking
+k723,<100,radio/tv,1505.0,18.0,no checking
+k412,no known savings,radio/tv,3148.0,24.0,>=200
+k4,100<=X<500,used car,6148.0,20.0,0<=X<200
+k318,<100,radio/tv,1337.0,9.0,>=200
+k408,>=1000,education,433.0,6.0,0<=X<200
+k260,<100,new car,1228.0,12.0,<0
+k621,500<=X<1000,radio/tv,790.0,9.0,0<=X<200
+k582,<100,new car,2570.0,27.0,no checking
+k85,>=1000,new car,250.0,6.0,no checking
+k485,500<=X<1000,radio/tv,1316.0,15.0,no checking
+k657,<100,radio/tv,1882.0,18.0,<0
+k666,<100,business,6416.0,48.0,0<=X<200
+k288,>=1000,business,1275.0,24.0,>=200
+k325,<100,radio/tv,6403.0,24.0,0<=X<200
+k798,<100,radio/tv,1987.0,24.0,<0
+k510,<100,radio/tv,760.0,8.0,0<=X<200
+k95,>=1000,used car,2603.0,24.0,no checking
+k624,<100,new car,3380.0,4.0,no checking
+k322,no known savings,domestic appliance,3990.0,36.0,0<=X<200
+k79,<100,used car,11560.0,24.0,0<=X<200
+k549,100<=X<500,new car,4380.0,18.0,<0
+k83,<100,new car,6761.0,6.0,no checking
+k136,100<=X<500,business,4280.0,30.0,0<=X<200
+k224,100<=X<500,new car,2325.0,24.0,<0
+k150,<100,radio/tv,1048.0,10.0,0<=X<200
+k522,no known savings,radio/tv,3160.0,21.0,no checking
+k883,500<=X<1000,furniture/equipment,2483.0,24.0,<0
+k888,no known savings,furniture/equipment,14179.0,39.0,<0
+k472,<100,business,1797.0,13.0,<0
+k469,<100,new car,2511.0,15.0,<0
+k955,<100,new car,1274.0,12.0,<0
+k704,no known savings,used car,5248.0,21.0,no checking
+k943,<100,used car,3029.0,15.0,no checking
+k101,<100,furniture/equipment,428.0,6.0,<0
+k132,<100,new car,976.0,18.0,<0
+k126,100<=X<500,business,841.0,12.0,0<=X<200
+k773,<100,radio/tv,5771.0,30.0,no checking
+k784,>=1000,repairs,1555.0,12.0,no checking
+k476,no known savings,new car,1285.0,24.0,<0
+k779,<100,new car,1299.0,6.0,>=200
+k715,no known savings,radio/tv,1271.0,15.0,>=200
+k146,<100,new car,1393.0,24.0,no checking
+k187,<100,new car,691.0,12.0,<0
+k82,no known savings,new car,5045.0,15.0,no checking
+k521,<100,furniture/equipment,2124.0,18.0,<0
+k577,<100,radio/tv,2214.0,12.0,<0
+k520,no known savings,new car,12680.0,21.0,no checking
+k989,100<=X<500,new car,2463.0,24.0,no checking
+k410,<100,radio/tv,1155.0,12.0,0<=X<200
+k831,<100,furniture/equipment,3108.0,30.0,<0
+k235,no known savings,used car,2901.0,10.0,no checking
+k21,<100,furniture/equipment,3617.0,12.0,0<=X<200
+k466,<100,radio/tv,1655.0,12.0,no checking
+k861,no known savings,used car,2812.0,24.0,<0
+k575,<100,education,8065.0,36.0,<0
+k29,<100,used car,3275.0,21.0,no checking
+k690,100<=X<500,radio/tv,2223.0,24.0,no checking
+k534,500<=X<1000,new car,1480.0,12.0,>=200
+k391,no known savings,new car,1371.0,24.0,<0
+k488,<100,new car,3535.0,36.0,no checking
+k455,<100,radio/tv,3509.0,18.0,<0
+k659,>=1000,used car,5711.0,36.0,no checking
+k584,<100,repairs,3872.0,18.0,0<=X<200
+k452,<100,radio/tv,4933.0,39.0,0<=X<200
+k121,>=1000,new car,1940.0,24.0,no checking
+k0,<100,retraining,1410.0,12.0,0<=X<200
+k804,100<=X<500,new car,836.0,12.0,0<=X<200
+k259,no known savings,used car,6468.0,20.0,0<=X<200
+k885,>=1000,business,1941.0,18.0,0<=X<200
+k851,500<=X<1000,radio/tv,2675.0,22.0,no checking
+k956,no known savings,used car,2751.0,48.0,no checking
+k340,<100,education,6224.0,48.0,0<=X<200
+k112,<100,education,5998.0,40.0,<0
+k546,<100,business,1188.0,21.0,0<=X<200
+k791,no known savings,used car,6313.0,24.0,no checking
+k245,no known savings,furniture/equipment,1221.0,6.0,no checking
+k950,<100,furniture/equipment,2892.0,24.0,>=200
+k911,500<=X<1000,furniture/equipment,3062.0,24.0,no checking
+k802,100<=X<500,furniture/equipment,2301.0,9.0,no checking
+k590,no known savings,used car,7511.0,18.0,<0
+k909,<100,furniture/equipment,1258.0,12.0,no checking
+k262,no known savings,new car,717.0,24.0,no checking
+k900,no known savings,new car,1549.0,9.0,0<=X<200
+k651,<100,education,1597.0,24.0,no checking
+k15,<100,radio/tv,1795.0,18.0,0<=X<200
+k699,<100,furniture/equipment,4272.0,20.0,<0
+k278,no known savings,radio/tv,976.0,12.0,no checking
+k611,no known savings,new car,7472.0,12.0,0<=X<200
+k117,<100,new car,9271.0,36.0,<0
+k343,<100,radio/tv,590.0,6.0,0<=X<200
+k853,no known savings,radio/tv,930.0,12.0,no checking
+k515,<100,used car,9283.0,42.0,0<=X<200
+k72,<100,new car,1778.0,15.0,0<=X<200
+k799,<100,business,907.0,8.0,0<=X<200
+k460,<100,radio/tv,484.0,6.0,0<=X<200
+k733,<100,used car,9629.0,36.0,<0
+k618,<100,domestic appliance,3051.0,48.0,<0
+k740,<100,new car,3931.0,48.0,<0
+k421,<100,new car,7432.0,36.0,0<=X<200
+k438,500<=X<1000,domestic appliance,1338.0,6.0,no checking
+k186,<100,radio/tv,1554.0,6.0,no checking
+k564,<100,other,15857.0,36.0,<0
+k711,<100,radio/tv,1345.0,18.0,<0
+k388,<100,new car,1101.0,12.0,no checking
+k447,<100,radio/tv,3016.0,12.0,>=200
+k427,<100,furniture/equipment,2712.0,36.0,<0
+k514,<100,new car,731.0,8.0,<0
+k623,<100,furniture/equipment,3780.0,18.0,no checking
+k921,<100,new car,1602.0,21.0,<0
+k782,<100,new car,3966.0,18.0,<0
+k206,<100,business,4165.0,18.0,no checking
+k626,no known savings,used car,8335.0,36.0,<0
+k579,no known savings,business,6681.0,48.0,0<=X<200
+k875,500<=X<1000,business,2375.0,24.0,no checking
+k190,<100,new car,1216.0,18.0,<0
+k496,<100,business,11816.0,45.0,<0
+k493,no known savings,radio/tv,5084.0,24.0,0<=X<200
+k756,<100,radio/tv,2327.0,15.0,>=200
+k612,<100,new car,1082.0,12.0,<0
+k650,no known savings,radio/tv,886.0,12.0,no checking
+k971,<100,furniture/equipment,601.0,4.0,no checking
+k654,<100,used car,2957.0,24.0,<0
+k705,<100,radio/tv,2611.0,24.0,no checking
+k371,<100,furniture/equipment,5179.0,36.0,<0
+k459,<100,used car,2993.0,21.0,no checking
+k926,<100,repairs,1943.0,18.0,no checking
+k914,<100,business,1559.0,24.0,no checking
+k166,<100,furniture/equipment,3422.0,18.0,no checking
+k196,no known savings,furniture/equipment,3976.0,21.0,0<=X<200
+k250,no known savings,new car,6761.0,18.0,no checking
+k972,<100,new car,1249.0,24.0,no checking
+k742,<100,radio/tv,1364.0,9.0,<0
+k384,<100,radio/tv,709.0,12.0,<0
+k353,<100,new car,2235.0,20.0,<0
+k557,no known savings,used car,4042.0,24.0,no checking
+k947,<100,radio/tv,1471.0,15.0,no checking
+k694,<100,new car,1442.0,18.0,<0
+k168,<100,new car,10875.0,36.0,no checking
+k562,100<=X<500,new car,1474.0,24.0,no checking
+k358,no known savings,retraining,894.0,10.0,no checking
+k876,<100,furniture/equipment,3343.0,15.0,no checking
+k837,<100,new car,3959.0,15.0,<0
+k463,100<=X<500,new car,3577.0,9.0,no checking
+k244,>=1000,used car,5804.0,24.0,no checking
+k342,<100,business,2169.0,18.0,no checking
+k135,<100,radio/tv,2439.0,24.0,<0
+k35,>=1000,furniture/equipment,4526.0,27.0,no checking
+k36,<100,furniture/equipment,2210.0,10.0,no checking
+k949,500<=X<1000,furniture/equipment,2221.0,15.0,no checking
+k653,<100,radio/tv,2389.0,18.0,<0
+k916,<100,furniture/equipment,3331.0,12.0,no checking
+k899,no known savings,business,7409.0,36.0,no checking
+k967,<100,furniture/equipment,652.0,12.0,<0
+k525,500<=X<1000,furniture/equipment,7678.0,36.0,no checking
+k131,<100,new car,1343.0,6.0,>=200
+k213,100<=X<500,business,1382.0,24.0,<0
+k685,no known savings,domestic appliance,874.0,15.0,no checking
+k555,<100,furniture/equipment,3590.0,12.0,<0
+k777,>=1000,new car,1322.0,11.0,0<=X<200
+k869,<100,radio/tv,1940.0,18.0,<0
+k961,<100,radio/tv,3595.0,36.0,no checking
+k492,<100,new car,1422.0,9.0,<0
+k929,no known savings,radio/tv,6742.0,30.0,no checking
+k61,<100,used car,7814.0,24.0,no checking
+k813,no known savings,used car,9277.0,24.0,no checking
+k301,no known savings,new car,2181.0,30.0,0<=X<200
+k97,<100,radio/tv,1098.0,18.0,no checking
+k70,<100,furniture/equipment,4057.0,24.0,0<=X<200
+k698,<100,education,795.0,12.0,<0
+k592,no known savings,business,2825.0,24.0,0<=X<200
+k54,<100,business,15672.0,48.0,0<=X<200
+k100,<100,new car,6614.0,36.0,no checking
+k610,no known savings,used car,7824.0,28.0,no checking
+k400,<100,business,2442.0,27.0,<0
+k762,<100,radio/tv,1829.0,15.0,no checking
+k952,<100,new car,2171.0,12.0,<0
+k632,<100,used car,5800.0,36.0,0<=X<200
+k996,no known savings,radio/tv,1169.0,18.0,no checking
+k994,no known savings,used car,8947.0,36.0,no checking
+k276,<100,radio/tv,2606.0,21.0,<0
+k179,>=1000,furniture/equipment,1592.0,12.0,no checking
+k613,no known savings,furniture/equipment,2186.0,15.0,no checking
+k487,<100,furniture/equipment,4153.0,18.0,<0
+k630,<100,new car,2625.0,16.0,<0
+k719,no known savings,new car,3485.0,20.0,no checking
+k116,no known savings,used car,10477.0,36.0,no checking
+k614,no known savings,radio/tv,1386.0,15.0,no checking
+k691,<100,radio/tv,1278.0,24.0,no checking
+k908,<100,radio/tv,1107.0,12.0,<0
+k523,no known savings,new car,3763.0,21.0,<0
+k251,no known savings,education,3711.0,36.0,0<=X<200
+k701,<100,used car,3594.0,15.0,no checking
+k844,no known savings,new car,3195.0,9.0,0<=X<200
+k998,<100,radio/tv,4454.0,36.0,no checking
+k34,<100,furniture/equipment,4736.0,24.0,0<=X<200
+k197,no known savings,radio/tv,2991.0,30.0,0<=X<200
+k509,>=1000,business,2142.0,11.0,no checking
+k56,<100,business,3161.0,24.0,<0
+k928,<100,other,18424.0,48.0,0<=X<200
+k279,100<=X<500,used car,2848.0,10.0,no checking
+k713,<100,new car,14896.0,6.0,<0
+k891,100<=X<500,furniture/equipment,2359.0,24.0,<0
+k108,<100,furniture/equipment,3345.0,24.0,<0
+k192,<100,furniture/equipment,1817.0,18.0,no checking
+k732,500<=X<1000,radio/tv,12749.0,48.0,no checking
+k307,<100,radio/tv,1366.0,9.0,<0
+k846,<100,new car,2002.0,12.0,0<=X<200
+k764,<100,furniture/equipment,6872.0,24.0,<0
+k266,<100,new car,697.0,12.0,<0
+k453,<100,furniture/equipment,1049.0,18.0,<0
+k504,<100,used car,10297.0,48.0,<0
+k635,no known savings,radio/tv,1867.0,30.0,no checking
+k725,<100,new car,1344.0,12.0,<0
+k18,<100,furniture/equipment,1747.0,24.0,<0
+k373,<100,radio/tv,1670.0,9.0,0<=X<200
+k338,<100,new car,1224.0,9.0,no checking
+k59,500<=X<1000,radio/tv,522.0,12.0,no checking
+k997,<100,radio/tv,1498.0,12.0,<0
+k491,100<=X<500,radio/tv,1919.0,30.0,0<=X<200
+k794,<100,radio/tv,745.0,9.0,>=200
+k608,<100,radio/tv,2063.0,6.0,0<=X<200
+k687,<100,education,6288.0,60.0,0<=X<200
+k678,no known savings,used car,6842.0,24.0,no checking
+k474,no known savings,new car,3527.0,12.0,no checking
+k863,<100,new car,1546.0,10.0,no checking
+k169,no known savings,furniture/equipment,929.0,24.0,no checking
+k743,<100,new car,1455.0,4.0,no checking
+k689,<100,furniture/equipment,1845.0,15.0,<0
+k60,500<=X<1000,new car,8358.0,48.0,0<=X<200
+k489,500<=X<1000,furniture/equipment,3349.0,24.0,<0
+k484,no known savings,new car,2859.0,12.0,no checking
+k749,<100,furniture/equipment,1533.0,18.0,no checking
+k857,100<=X<500,radio/tv,3621.0,24.0,no checking
+k369,<100,business,3590.0,18.0,0<=X<200
+k199,<100,business,2145.0,36.0,<0
+k780,500<=X<1000,used car,4113.0,24.0,0<=X<200
+k51,<100,furniture/equipment,10974.0,36.0,no checking
+k490,<100,new car,1893.0,12.0,<0
+k77,>=1000,radio/tv,1231.0,24.0,<0
+k444,no known savings,radio/tv,3656.0,30.0,>=200
+k561,<100,radio/tv,1154.0,9.0,0<=X<200
+k508,<100,new car,4006.0,28.0,<0
+k201,100<=X<500,furniture/equipment,3069.0,24.0,0<=X<200
+k581,<100,radio/tv,1740.0,6.0,no checking
+k507,<100,new car,2353.0,21.0,0<=X<200
+k398,no known savings,new car,3556.0,15.0,no checking
+k204,500<=X<1000,radio/tv,2397.0,24.0,no checking
+k910,<100,repairs,454.0,6.0,0<=X<200
+k880,no known savings,radio/tv,1715.0,30.0,0<=X<200
+k518,500<=X<1000,radio/tv,2520.0,27.0,0<=X<200
+k346,<100,radio/tv,3568.0,15.0,no checking
+k458,no known savings,radio/tv,7166.0,42.0,no checking
+k940,<100,new car,3939.0,11.0,<0
+k811,100<=X<500,repairs,1514.0,15.0,0<=X<200
+k498,<100,new car,7393.0,24.0,no checking
+k648,<100,new car,1193.0,24.0,<0
+k80,<100,business,7297.0,60.0,<0
+k695,<100,radio/tv,2831.0,30.0,no checking
+k441,500<=X<1000,radio/tv,1258.0,24.0,>=200
+k157,<100,radio/tv,753.0,6.0,0<=X<200
+k128,no known savings,business,2427.0,18.0,0<=X<200
+k88,<100,new car,2538.0,24.0,no checking
+k211,100<=X<500,new car,1264.0,15.0,0<=X<200
+k397,<100,furniture/equipment,8386.0,30.0,0<=X<200
+k328,<100,business,4844.0,48.0,no checking
+k596,100<=X<500,new car,2923.0,21.0,>=200
+k835,<100,used car,8229.0,36.0,<0
+k676,<100,furniture/equipment,2028.0,24.0,no checking
+k242,<100,furniture/equipment,1433.0,15.0,<0
+k164,<100,business,6289.0,42.0,>=200
+k735,100<=X<500,radio/tv,1409.0,13.0,no checking
+k903,<100,used car,6579.0,24.0,<0
+k644,<100,radio/tv,1743.0,24.0,0<=X<200
+k829,no known savings,education,3565.0,12.0,no checking
+k198,100<=X<500,radio/tv,1569.0,15.0,no checking
+k348,no known savings,radio/tv,1936.0,18.0,<0
+k31,<100,furniture/equipment,3959.0,36.0,<0
+k394,no known savings,new car,2390.0,12.0,no checking
+k783,<100,furniture/equipment,1736.0,12.0,no checking
+k479,<100,used car,3857.0,30.0,<0
+k481,<100,radio/tv,804.0,12.0,no checking
+k808,<100,radio/tv,1845.0,45.0,<0
+k672,100<=X<500,used car,4576.0,45.0,0<=X<200

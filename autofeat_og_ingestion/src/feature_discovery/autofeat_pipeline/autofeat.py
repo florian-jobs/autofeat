@@ -1,0 +1,387 @@
+import logging
+import tempfile
+import uuid
+from pathlib import Path
+from typing import List, Dict, Set, Tuple, Optional
+
+import pandas as pd
+import polars as pl
+from autogluon.features.generators import AutoMLPipelineFeatureGenerator
+
+
+from feature_discovery.autofeat_pipeline.join_data import join_and_save
+from feature_discovery.autofeat_pipeline.join_path_feature_selection import RelevanceRedundancy
+from feature_discovery.autofeat_pipeline.join_path_utils import compute_join_name
+from feature_discovery.experiments.dataset_object import CLASSIFICATION
+from feature_discovery.graph_processing.neo4j_transactions import (
+    get_adjacent_nodes,
+    get_relation_properties_node_name,
+)
+from feature_discovery.helpers.read_data import get_df_with_prefix
+
+# Hard rule: never join on a (near-)binary column. Aurum-style joinability over
+# datasets full of binary indicator columns (e.g. covertype's ~40 Soil_Type
+# flags) flags many binary<->binary pairs as joinable under the fixed 0.55
+# Valentine / 0.65 value-ratio thresholds, producing a combinatorial blowup of
+# join *paths* (covertype: ~520 of 670 graph edges are binary-column joins).
+# A binary column is never a meaningful foreign key, so we drop any join
+# candidate whose join column has at most this many distinct values. This is
+# independent of the (paper-fixed) overlap/value-ratio thresholds.
+MIN_JOIN_KEY_CARDINALITY = 3
+
+
+def _join_column_cardinality(df, prefixed_col) -> Optional[int]:
+    """Distinct-value count of ``prefixed_col`` in ``df`` (polars or pandas);
+    ``None`` if the column is absent."""
+    try:
+        cols = df.columns
+        if prefixed_col not in cols:
+            return None
+        series = df[prefixed_col]
+        return int(series.n_unique()) if isinstance(df, pl.DataFrame) else int(series.nunique())
+    except Exception:
+        return None
+
+logging.getLogger().setLevel(logging.WARNING)
+
+
+class AutoFeat:
+    def __init__(
+        self,
+        base_table_label: str,
+        base_table_id: str,
+        target_column: str,
+        save_joins_to_disk: bool,
+        use_polars: bool,
+        task: str = CLASSIFICATION,
+        value_ratio: float = 0.65,
+        top_k: int = 5,
+        sample_size: int = 3000,
+        pearson: bool = False,
+        jmi: bool = False,
+        no_relevance: bool = False,
+        no_redundancy: bool = False,
+    ):
+        """
+
+        :param base_table_label: The name (label) of the base table to be used for saving data.
+        :param target_column: Target column containing the class labels for training.
+        :param value_ratio: Pruning threshold. It represents the ration between the number of non-null values in a column and the total number of values.
+        """
+        self.base_table_label: str = base_table_label
+        self.target_column: str = target_column
+        self.value_ratio: float = value_ratio
+        self.top_k: int = top_k
+        self.sample_size: int = sample_size
+        self.base_table_id: str = base_table_id
+        self.task: str = task
+        # Mapping with the name of the join and the corresponding name of the file containing the join result.
+        self.join_name_mapping: Dict[str, str] = {}
+        # Set used to track the visited nodes.
+        self.discovered: Set[str] = set()
+        # Save the selected features of the previous join path (used for conditional redundancy)
+        self.partial_join_selected_features: Dict[str, List] = {}
+
+        self.ranking: Dict[str, float] = {}
+        self.join_keys: Dict[str, list] = {}
+        self.rel_red = RelevanceRedundancy(target_column, jmi=jmi, pearson=pearson)
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.use_polars = use_polars
+        self.partial_join = self.initialisation()
+
+        # Ablation study parameters
+        self.sample_data_step = True
+        self.no_relevance = no_relevance
+        self.no_redundancy = no_redundancy
+
+        # Whether to save the joins to disk or not
+        self.save_joins_to_disk = save_joins_to_disk
+        self.iters = 0
+        if self.save_joins_to_disk is not True:
+            self.joins_to_df: Dict[str, pd.DataFrame] = {}
+        else:
+            logging.warn(f"Saving intermediate joins to disk: {self.temp_dir.name}")
+
+    def initialisation(self):
+        from sklearn.model_selection import train_test_split
+
+        # Read dataframe
+        base_table_df, partial_join_name = get_df_with_prefix(
+            self.base_table_id, self.target_column, use_polars=self.use_polars
+        )
+
+        # Stratified sampling
+        if self.sample_size < base_table_df.shape[0]:
+            if self.task == CLASSIFICATION:
+                X_train, X_test = train_test_split(
+                    base_table_df,
+                    train_size=self.sample_size,
+                    stratify=base_table_df[self.target_column],
+                    random_state=42,
+                )
+            else:
+                X_train, X_test = train_test_split(base_table_df, train_size=self.sample_size, random_state=42)
+        else:
+            X_train = base_table_df
+
+        # Base table features are the selected features
+        features = list(X_train.columns)
+        if self.target_column in features:
+            features.remove(self.target_column)
+
+        self.partial_join_selected_features[partial_join_name] = features
+        self.ranking[partial_join_name] = 0
+        self.join_keys[partial_join_name] = []
+
+        return X_train
+
+    def streaming_feature_selection(self, queue: set, previous_queue: set = None):
+        if len(queue) == 0:
+            return
+
+        if previous_queue is None:
+            previous_queue = queue.copy()
+
+        # Iterate through all the elements of the queue:
+        # 1) in the first iteration: queue = base_node_id
+        # 2) in all the other iterations: queue = neighbours of the previous node
+        all_neighbours = set()
+
+        while len(queue) > 0:
+            # Get the current/base node
+            base_node_id = queue.pop()
+            self.discovered.add(base_node_id)
+            logging.debug(f"New iteration with base node: {base_node_id}")
+
+            # Determine the neighbours (unvisited)
+            neighbours = sorted(set(get_adjacent_nodes(base_node_id)) - set(self.discovered))
+            if len(neighbours) == 0:
+                continue
+
+            all_neighbours.update(neighbours)
+
+            # Process every neighbour - join, determine quality, get features
+            for node in neighbours:
+                self.discovered.add(node)
+                logging.debug(f"Adjacent node: {node}")
+
+                # Read the neighbour node (needed to check join-column cardinality
+                # before ranking the join keys).
+                right_df, right_label = get_df_with_prefix(node, use_polars=self.use_polars)
+                logging.debug(f"\tRight table shape: {right_df.shape}")
+
+                # Get the join keys, then HARD-DROP (near-)binary join columns
+                # before ranking: a binary column is never a real foreign key and
+                # joining on it explodes the number of join paths (see
+                # MIN_JOIN_KEY_CARDINALITY). Filtering the full candidate list
+                # (not just the top-weight one) lets a lower-weight high-cardinality
+                # key survive when the top-weight candidate is binary.
+                join_keys = get_relation_properties_node_name(from_id=base_node_id, to_id=node)
+                _kept = []
+                for jk in join_keys:
+                    to_col = f"{jk[2]}.{jk[0]['to_column']}"
+                    card = _join_column_cardinality(right_df, to_col)
+                    if card is not None and card < MIN_JOIN_KEY_CARDINALITY:
+                        logging.debug(f"\tskip binary join key {to_col} (card={card})")
+                        continue
+                    _kept.append(jk)
+                join_keys = _kept
+                if len(join_keys) == 0:
+                    continue
+
+                if len(join_keys) == 1:
+                    highest_ranked_join_keys = join_keys
+                else:
+                    highest_ranked_join_keys = []
+                    for jk in join_keys:
+                        if jk[0]['weight'] == join_keys[0][0]['weight']:
+                            highest_ranked_join_keys.append(jk)
+                        else:
+                            break
+
+                current_queue = set()
+                while len(previous_queue) > 0:
+                    previous_join_name = previous_queue.pop()
+
+                    previous_join = None
+                    if previous_join_name == self.base_table_id:
+                        previous_join_name = self.base_table_id
+                        previous_join = self.partial_join.copy()
+                    else:
+                        filename_key = self.join_name_mapping[previous_join_name]
+                        if self.save_joins_to_disk:
+                            previous_join = pd.read_parquet(
+                                Path(self.temp_dir.name) / filename_key,
+                            )
+                        else:
+                            previous_join = self.joins_to_df[filename_key]
+                            # del self.joins_to_df[filename_key]
+
+                    # self.iters += 1
+                    # print(self.iters)
+
+                    # The current node can only be joined through the base node.
+                    # If the base node doesn't exist in the previous join path, the join can't be performed
+
+                    if base_node_id not in previous_join_name:
+                        logging.debug(f"\tBase node {base_node_id} not in partial join {previous_join_name}")
+                        continue
+
+                    for prop in highest_ranked_join_keys:
+                        join_prop, from_table, to_table = prop
+                        if join_prop['from_label'] != from_table:
+                            continue
+
+                        if join_prop['from_column'] == self.target_column:
+                            current_queue.add(previous_join_name)
+                            continue
+
+                        logging.debug(f"\t\tJoin properties: {join_prop}")
+
+                        # Step - Explore all possible join paths based on the join keys - Compute the name of the join
+                        join_name = compute_join_name(join_key_property=prop, partial_join_name=previous_join_name)
+                        logging.debug(f"\tJoin name: {join_name}")
+
+                        # Step - Join
+                        joined_df, join_filename, join_columns = self.step_join(
+                            join_key_properties=prop, left_df=previous_join, right_df=right_df, right_label=right_label
+                        )
+
+                        if joined_df is None:
+                            current_queue.add(previous_join_name)
+                            if not self.save_joins_to_disk:
+                                self.joins_to_df[join_filename] = joined_df
+                            continue
+
+                        data_quality = self.step_data_quality(join_key_properties=prop, joined_df=joined_df)
+                        if not data_quality:
+                            current_queue.add(previous_join_name)
+                            if not self.save_joins_to_disk:
+                                self.joins_to_df[join_filename] = joined_df
+                            continue
+
+                        result = self.streaming_relevance_redundancy(
+                            dataframe=joined_df.copy(),
+                            new_features=list(right_df.columns),
+                            selected_features=self.partial_join_selected_features[previous_join_name],
+                        )
+                        if result is not None:
+                            self.ranking[join_name] = result[0]
+                            all_selected_features = self.partial_join_selected_features[previous_join_name]
+                            all_selected_features.extend(result[1])
+                            self.partial_join_selected_features[join_name] = all_selected_features
+                        else:
+                            self.partial_join_selected_features[join_name] = self.partial_join_selected_features[
+                                previous_join_name
+                            ]
+
+                        join_columns.extend(self.join_keys[previous_join_name])
+                        self.join_keys[join_name] = join_columns
+                        self.join_name_mapping[join_name] = join_filename
+
+                        current_queue.add(join_name)
+                        if not self.save_joins_to_disk:
+                            self.joins_to_df[join_filename] = joined_df
+                # Initialise the queue with the new paths (current_queue)
+                previous_queue.update(current_queue)
+
+        self.streaming_feature_selection(all_neighbours, previous_queue)
+
+    def streaming_relevance_redundancy(
+        self, dataframe: pd.DataFrame, new_features: List[str], selected_features: List[str]
+    ) -> Optional[Tuple[float, List[dict]]]:
+        df = AutoMLPipelineFeatureGenerator(
+            enable_text_special_features=False, enable_text_ngram_features=False
+        ).fit_transform(X=dataframe, random_state=42, random_seed=42)
+
+        X = df.drop(columns=[self.target_column])
+        y = df[self.target_column]
+
+        features = list(set(X.columns).intersection(set(new_features)))
+        top_feat = len(features) if len(features) < self.top_k else self.top_k
+
+        relevant_features = new_features
+        sum_m = 0
+        m = 1
+        if not self.no_relevance:
+            feature_score_relevance = self.rel_red.measure_relevance(
+                dataframe=X, new_features=features, target_column=y
+            )[:top_feat]
+            if len(feature_score_relevance) == 0:
+                return None
+            relevant_features = list(dict(feature_score_relevance).keys())
+            m = len(feature_score_relevance) if len(feature_score_relevance) > 0 else m
+            sum_m = sum(list(map(lambda x: x[1], feature_score_relevance)))
+
+        final_features = relevant_features
+        sum_o = 0
+        o = 1
+        if not self.no_redundancy:
+            feature_score_redundancy = self.rel_red.measure_redundancy(
+                dataframe=X, selected_features=selected_features, relevant_features=relevant_features, target_column=y
+            )
+
+            if len(feature_score_redundancy) == 0:
+                return None
+
+            o = len(feature_score_redundancy) if feature_score_redundancy else o
+            sum_o = sum(list(map(lambda x: x[1], feature_score_redundancy)))
+            final_features = list(dict(feature_score_redundancy).keys())
+
+        score = (o * sum_m + m * sum_o) / (m * o)
+
+        return score, final_features
+
+    def step_join(
+        self,
+        join_key_properties: tuple,
+        left_df: pd.DataFrame,
+        right_df: pd.DataFrame,
+        right_label: str,
+    ) -> Tuple[pd.DataFrame or None, str, list]:
+        logging.debug("\tSTEP Join ... ")
+        join_prop, from_table, to_table = join_key_properties
+
+        # Step - Sample neighbour data - Transform to 1:1 or M:1
+        sampled_right_df = right_df
+        if self.sample_data_step:
+            if self.use_polars:
+                right_df_pl = pl.from_pandas(right_df)
+                sampled_right_df = right_df_pl.filter(
+                    pl.int_range(0, pl.count()).shuffle(seed=42).over(f"{right_label}.{join_prop['to_column']}") < 1
+                )
+            else:
+                sampled_right_df = right_df.groupby(f"{right_label}.{join_prop['to_column']}").sample(
+                    n=1, random_state=42
+                )
+
+        # File naming convention as the filename can be gigantic
+        join_filename = f"{self.base_table_label}_join_BFS_{self.value_ratio}_{str(uuid.uuid4())}.parquet"
+
+        # Join
+        left_on = f"{from_table}.{join_prop['from_column']}"
+        right_on = f"{to_table}.{join_prop['to_column']}"
+        joined_df = join_and_save(
+            left_df=pl.from_pandas(left_df) if self.use_polars else left_df,
+            right_df=sampled_right_df,
+            left_column_name=left_on,
+            right_column_name=right_on,
+            join_path=Path(self.temp_dir.name) / join_filename,
+            csv=False,
+            save_to_disk=self.save_joins_to_disk,
+        )
+        if joined_df is None:
+            return None, join_filename, []
+
+        return joined_df, join_filename, [left_on, right_on]
+
+    def step_data_quality(self, join_key_properties: tuple, joined_df: pd.DataFrame) -> bool:
+        logging.debug("\tSTEP data quality ...")
+        join_prop, _, to_table = join_key_properties
+
+        # Data Quality check - Prune the joins with high null values ratio
+        if joined_df[f"{to_table}.{join_prop['to_column']}"].count() / joined_df.shape[0] < self.value_ratio:
+            logging.debug(f"\t\tRight column value ration below {self.value_ratio}.\nSKIPPED Join")
+            return False
+
+        return True

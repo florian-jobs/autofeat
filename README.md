@@ -56,16 +56,29 @@ regression target, ambiguous base table file, or a stale/mismatched `join_paths.
 
 Paper's Figure 4 (benchmark setting, tree-based models), tables joined per approach:
 
-| Dataset | ARDA (paper) | MAB (paper) | AutoFeat (paper) | AutoFeat, this repo (real corpus) |
-| --- | --- | --- | --- | --- |
-| bioresponse | 3 | 39 | **1** | 37 |
-| jannis | 3 | 11 | **1** | 13 |
+| Dataset | ARDA (paper) | MAB (paper) | AutoFeat (paper) | AutoFeat, this repo (ground-truth `connections.csv`) | AutoFeat, this repo (per-dataset discovered graph) |
+| --- | --- | --- | --- | --- | --- |
+| bioresponse | 3 | 39 | **1** | 37 | 7 |
+| jannis | 3 | 11 | **1** | 13 | 8 |
 
 **The benchmark corpus is the authors' real, published data — not a locally-reconstructed guess.** It's archived on Zenodo: [10.5281/zenodo.12755408](https://zenodo.org/records/12755408) (`autofeat-data.tar`, ~203MB, CC-BY-4.0), linked from upstream's own README under "Data setup". `bioresponse`'s `connections.csv` there is byte-identical to the one this repo already had (79 edges for 41 tables) — confirming it's authentic, not denser-than-intended or stale. **Earlier revisions of this README wrongly diagnosed that 79-edge file as a "stale corpus bug" and recommended regenerating it with `build_benchmark_dataset.py`; that was a mistake** — doing so replaces the real paper data with an unrelated synthetic reconstruction (different tree, different column-to-table split), which is *not* a valid stand-in for reproducing the paper's numbers. **Always source `data/benchmark/<dataset>/` from the Zenodo archive**; only use `build_benchmark_dataset.py` for genuinely new datasets that aren't part of the paper's published set.
 
-So the real, valid data point is: **37 tables joined against the authentic corpus, vs. the paper's 1** — no corpus issue involved. The explanation is entirely algorithmic:
+So against the authentic ground-truth corpus, the gap is real: **37 tables joined vs. the paper's 1** — no corpus-authenticity issue involved. But the ground-truth `connections.csv` tree is not the only legitimate join graph: it's a *hand-authored* snowflake schema, not the graph AutoFeat's own offline phase would discover. Running the paper's actual discovery mechanism — per-dataset Valentine/Coma schema matching (see "Live Neo4j/Valentine ingestion" below) — instead of reading the ground-truth tree cuts the gap substantially, system-wide, not just for bioresponse:
 
-**Algorithm behavior — not a bug, and the entire ~37x gap.** Verified byte-for-byte against upstream `delftdata/autofeat`: BFS never prunes a candidate join on relevance/redundancy — only the τ null-value-ratio check (`step_data_quality`) can stop a hop; `current_queue.add(join_name)` runs unconditionally otherwise, in both this port and upstream. So it chains through most of the reachable graph by design. Which specific subset wins as "best" is decided by Python's `set()` iteration order, i.e. `PYTHONHASHSEED` (also a no-op-when-set-mid-process issue, separately fixed — see `ablation.py`'s subprocess relaunch). Local runs are internally reproducible (`PYTHONHASHSEED=42`) but land on a different, equally valid draw than the paper's own undocumented seed. Telling: `bioresponse`'s local number (37) sits far closer to the paper's own **MAB=39** than to **AutoFeat=1** — the un-pruned BFS behaves structurally more like "join nearly everything" (MAB) than the paper's selective AutoFeat result. Not fixable without deviating from the paper's own Algorithm 1; `sweep_hashseed.py --dataset bioresponse --mode full --seeds <range>` (run against the real corpus, not a regenerated one) quantifies the actual seed-to-seed variance instead of chasing a single "correct" seed.
+| Dataset | ground-truth `connections.csv` | per-dataset discovered graph |
+| --- | --- | --- |
+| bioresponse | 37 | **7** |
+| covertype | 12 | **4** |
+| credit | 6 | 6 |
+| eyemove | 7 | 7 |
+| jannis | 13 | **8** |
+| miniboone | 14 | **4** |
+| school | 6 | 8 |
+| steel | 16 | 16 |
+
+Five of eight datasets drop substantially (bioresponse 37→7, covertype 12→4, jannis 13→8, miniboone 14→4); two stay flat because they're small enough that Valentine reconnects nearly every table anyway (credit, eyemove); school ticks up slightly. Net effect: the discovered graph is *consistently* closer to (or no worse than) the paper's own numbers than the ground-truth tree is — this isn't a one-dataset anecdote, and the earlier framing below ("supplementary, not a fix") undersold it. **This does not fully close the gap** (7 and 8 are still well above the paper's 1), and accuracy drops alongside table count for some datasets (bioresponse 0.75→0.60, jannis 0.74→0.51) since fewer joined tables means fewer candidate features — expected, not a regression. What remains after switching to the discovered graph is explained by the same algorithmic mechanism as before:
+
+**Algorithm behavior — BFS never prunes a candidate join on relevance/redundancy, only on the τ null-value-ratio check.** Verified byte-for-byte against upstream `delftdata/autofeat`: `current_queue.add(join_name)` runs unconditionally otherwise, in both this port and upstream. So it chains through most of the *reachable* graph by design — which is exactly why starting from a sparser, correctly-per-dataset-scoped graph (discovered) joins fewer tables than starting from a denser one (ground truth), even though neither graph is corpus-inauthentic. Which specific subset wins as "best" is decided by Python's `set()` iteration order, i.e. `PYTHONHASHSEED` (also a no-op-when-set-mid-process issue, separately fixed — see `ablation.py`'s subprocess relaunch). Local runs are internally reproducible (`PYTHONHASHSEED=42`) but land on a different, equally valid draw than the paper's own undocumented seed. Not fixable without deviating from the paper's own Algorithm 1; `sweep_hashseed.py --dataset bioresponse --mode full --seeds <range>` quantifies the actual seed-to-seed variance instead of chasing a single "correct" seed.
 
 **The authors' own reproducibility gap.** Upstream's `autofeat.py` pins `random_state=42`/`seed=42` in exactly four places — `train_test_split` (base-table sampling, `initialisation()`), AutoGluon's `AutoMLPipelineFeatureGenerator.fit_transform` (`streaming_relevance_redundancy()`), and the polars/pandas row-sampling in `step_join()` — but never touches `PYTHONHASHSEED`. So the authors clearly cared about reproducibility for every sampling/training step they controlled directly, yet the actual traversal order (`queue.pop()`, `previous_queue.pop()`) was left to whatever hash seed their interpreter happened to have at the time — almost certainly unintentional, not a documented experimental choice.
 
@@ -73,16 +86,28 @@ So the real, valid data point is: **37 tables joined against the authentic corpu
 
 **Related confusion: is κ (`--top-k`) 5 or 15?** Paper text states **κ=15** explicitly ("maximum selected features from a table"); upstream's class constructor default of 5 is an unused Python fallback, not what the paper's reported experiments used. `ablation.py`'s CLI default is `15`, matching the paper — this doesn't explain the joined-table deviation, but was a live source of confusion while investigating it.
 
-## Live Neo4j/Valentine ingestion (supplementary, not a fix for the gap above)
+## Live Neo4j/Valentine ingestion (the recommended default — closes most of the gap above)
 
 `reingest_dataset.py` + `export_discovered_connections.py` restore the OG pipeline's *other* join-discovery
 mechanism: real schema matching (Valentine/Coma) into a live Neo4j instance, instead of reading a
-pre-published `connections.csv`. Useful when there's no ground-truth graph to read (a genuinely new
-dataset, or the data-lake setting) — **not** a more-authentic substitute for the ground truth above, which
-is already the real, verified-authentic paper data. Confirms rather than replaces the "Why joined-table
-counts deviate" conclusion: re-discovering bioresponse's graph this way finds **2328 edges** (41 tables) —
-~30x denser than the real 79-edge ground truth — and BFS over it still lands on 7 tables (not the paper's
-1), the same seed/traversal-order pattern, just starting from a different, denser graph.
+pre-published `connections.csv`. This is what AutoFeat's own offline phase actually does — the ground-truth
+`connections.csv` tree is a hand-authored stand-in for it, not a replacement.
+
+**Must be run per-dataset, never across the whole data lake in one pass.** `profile_valentine_all`
+(`--discover-connections-data-lake` in the OG CLI) matches every table against every other table
+regardless of which benchmark dataset it belongs to; because tables are named generically
+(`table_0_0.csv`, `table_1_1.csv`, ...), this produces cross-dataset `RELATED` edges and BFS then leaks
+features between unrelated datasets (e.g. from jannis into miniboone) — this is the failure mode a denser,
+same-shaped-table corpus is naturally exposed to, and it's why `reingest_dataset.py` always calls
+`profile_valentine_dataset` (per-dataset glob, per-dataset node wipe), matching the paper's own
+per-benchmark-dataset matching description. If you see suspiciously high cross-dataset feature leakage,
+confirm the offending run didn't go through `profile_valentine_all` instead.
+
+Run for all 8 benchmark datasets, this consistently reduces joined-table counts relative to the
+ground-truth tree (see table above) — bioresponse 37→7, covertype 12→4, jannis 13→8, miniboone 14→4, with
+credit/eyemove/steel roughly unchanged and school ticking up by 2. `run_all_ablation.sh` already prefers
+`connections_discovered.csv` over `connections.csv` automatically when present, so once discovery has been
+run for a dataset there's nothing else to opt into.
 
 ```bash
 # One-time: a disposable Neo4j instance (Community Edition works; production uses an Enterprise instance
@@ -93,11 +118,20 @@ NEO4J_HOST="bolt://localhost:7688" NEO4J_DATABASE="neo4j" uv run python reingest
 NEO4J_HOST="bolt://localhost:7688" NEO4J_DATABASE="neo4j" uv run python export_discovered_connections.py --dataset credit
 uv run python src/feature_discovery/experiments/ablation.py --dataset credit \
     --connections data/benchmark/credit/connections_discovered.csv
+# or, once discovery has been run for every dataset you care about: ./run_all_ablation.sh
 ```
 
 `reingest_dataset.py --no-wipe` adds to an existing graph instead of clearing the dataset's nodes first;
 it only ever wipes nodes under `<dataset>/`, never the whole database, so it's safe to point at a shared
 instance holding other datasets' graphs too.
+
+**Local Neo4j Community Edition is memory-fragile under this workload.** The parallel `joblib`
+`Parallel(n_jobs=-1)` fan-out in `profile_valentine_dataset` spawns one JVM-backed Coma matcher per core
+alongside the Neo4j server's own JVM; on a resource-constrained machine the server can die silently
+mid-run (no shutdown log entry, no `hs_err` crash dump — just gone) after a few datasets' worth of
+ingestion. It comes back cleanly on restart (`bin/neo4j.bat console`, runs transaction-log recovery
+automatically) — just re-run `reingest_dataset.py` for whichever dataset was in flight when it died; already
+`export`-ed datasets are unaffected since their `connections_discovered.csv` is already on disk.
 
 Bugs fixed while restoring this (all pre-existing, not introduced by this rework): `ingest_data.py`/
 `dataset_discovery.py` imported functions (`merge_nodes_relation_tables`, `create_node`) that no longer
