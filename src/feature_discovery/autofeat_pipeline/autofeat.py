@@ -74,12 +74,16 @@ class AutoFeat:
             pearson: bool = False,
             jmi: bool = False,
             no_relevance: bool = False,
-            no_redundancy: bool = False
+            no_redundancy: bool = False,
+            leaky_features: Optional[Dict[str, List[int]]] = None
     ):
         """
         :param base_table_label: The name (label) of the base table to be used for saving data.
         :param target_column: Target column containing the class labels for training.
         :param value_ratio: Pruning threshold. It represents the ration between the number of non-null values in a column and the total number of values.
+        :param leaky_features: Optional dict mapping lake table id (no ".csv") -> list of leaky
+            column indices (raw column order in that table's csv) to exclude from every candidate
+            table before scoring - same format as arda/qcr/cocoa's leaky_features.json.
         """
         # Set random seeds for reproducibility
         random.seed(42)
@@ -96,6 +100,7 @@ class AutoFeat:
         self.sample_size: int = sample_size
         self.base_table_id: str = base_table_id
         self.task: str = task
+        self.leaky_features: Dict[str, List[int]] = leaky_features or {}
         # Mapping with the name of the join and the corresponding name of the file containing the join result.
         self.join_name_mapping: Dict[str, str] = {}
         # Set used to track the visited nodes.
@@ -243,6 +248,25 @@ class AutoFeat:
                 # ranking the join keys).
                 right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
                                                            table_sep=lake_table_sep, use_polars=self.use_polars)
+
+                # Drop leaky columns before this table's columns ever reach cardinality checks or
+                # scoring (streaming_relevance_redundancy's new_features below) - matching arda/qcr/
+                # cocoa, which exclude these at discovery time rather than filtering the result
+                # afterward, since ex-post filtering could still let a leaky column win a slot over
+                # a genuine one and silently change which join path gets ranked highest.
+                table_id = node[:-4] if node.endswith(".csv") else node
+                leaky_columns = self.leaky_features.get(table_id)
+                if leaky_columns:
+                    try:
+                        header = pd.read_csv(Path(lake_data_folder) / node, sep=lake_table_sep, nrows=0)
+                        raw_columns = list(header.columns)
+                    except Exception:
+                        raw_columns = []
+                    leaky_names = {raw_columns[i] for i in leaky_columns if i < len(raw_columns)}
+                    prefix = f"{right_label}."
+                    drop_cols = [c for c in right_df.columns if c.startswith(prefix) and c[len(prefix):] in leaky_names]
+                    if drop_cols:
+                        right_df = right_df.drop(columns=drop_cols)
                 logging.debug(f"\tRight table shape: {right_df.shape}")
 
                 # Get the join keys, then HARD-DROP (near-)binary join columns before ranking
