@@ -92,6 +92,29 @@ def _materialize_lake_table(source: Path, dest: Path) -> None:
             pass  # another concurrent run materialized it first
 
 
+def _find_table_dirs(corpus_dir: Path, table_ids: set) -> dict:
+    """
+    Maps each of `table_ids` to its actual directory under corpus_dir, however deeply nested (real
+    corpora aren't always <corpus_dir>/<table_id>/table.csv - e.g. lakebench-style layouts add extra
+    levels like <corpus_dir>/joinable_tables/lakebench/<table_id>/table.csv). Matches the exact same
+    leaf-directory convention beluga.offline.run.py and scripts/get_corpus_join_paths.py already use
+    to identify table directories, so this stays consistent with however the corpus was indexed.
+    IDs not found (or duplicated - same rule beluga.offline.run.py enforces) are simply absent from
+    the result rather than raising, since a table referenced in join_paths.csv may no longer exist.
+    """
+    if not table_ids:
+        return {}
+    found = {}
+    for path in corpus_dir.rglob("*"):
+        if not path.is_dir() or path.name not in table_ids or path.name in found:
+            continue
+        if not any(child.is_dir() for child in path.iterdir()):
+            found[path.name] = path
+            if len(found) == len(table_ids):
+                break
+    return found
+
+
 def _resolve_column_ref(ref, csv_path: Path, header_cache: dict) -> str:
     """
     BlendIndex.get_top_joins() (queried by scripts/get_join_paths.py and
@@ -265,11 +288,16 @@ class AUTOFEATBaseline:
         # Materialize every referenced corpus table (other than the base table, already written
         # above) as a flat <table_id>.csv, symlinked from the real nested corpus layout.
         referenced_ids = set(join_paths_df["from_id"]) | set(join_paths_df["to_id"])
+        referenced_table_ids = {
+            node_id[:-4] if node_id.endswith(".csv") else node_id
+            for node_id in referenced_ids - {base_table_id}
+        }
+        table_dirs = _find_table_dirs(corpus_dir, referenced_table_ids)
         for node_id in referenced_ids - {base_table_id}:
             table_id = node_id[:-4] if node_id.endswith(".csv") else node_id
-            source = corpus_dir / table_id / "table.csv"
-            if source.exists():
-                _materialize_lake_table(source, lake_data_folder / node_id)
+            table_dir_found = table_dirs.get(table_id)
+            if table_dir_found is not None:
+                _materialize_lake_table(table_dir_found / "table.csv", lake_data_folder / node_id)
 
         # Resolve positional column refs (see _resolve_column_ref) against each row's own table -
         # must happen after materializing above, so the flat lake csv's are there to read headers from.
