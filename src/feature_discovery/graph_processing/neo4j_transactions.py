@@ -132,7 +132,7 @@ def get_df_with_prefix(
         raw_df = _df_cache[cache_key].copy()
     else:
         if use_polars:
-            raw_df = pl.read_csv(f'{lake_data_folder}/{node_id}', encoding="utf8", quote_char='"', separator=table_sep, ignore_errors=True).to_pandas()
+            raw_df = pl.read_csv(f'{lake_data_folder}/{node_id}', encoding="utf8", quote_char='"', separator=table_sep, ignore_errors=True, truncate_ragged_lines=True).to_pandas()
         else:
             raw_df = pd.read_csv(
                 f'{lake_data_folder}/{node_id}', header=0, engine="python", encoding="utf8", sep=table_sep,
