@@ -138,6 +138,12 @@ def get_df_with_prefix(
                 f'{lake_data_folder}/{node_id}', header=0, engine="python", encoding="utf8", sep=table_sep,
                 on_bad_lines='skip'
             )
+        # Some real corpus files (e.g. Statistics Canada exports) start with a UTF-8 BOM and/or
+        # quote their header cells; left in place, the column name ends up as e.g. 'ï»¿"REF_DATE"'
+        # instead of 'REF_DATE', which then mismatches the clean name join_paths.csv expects and
+        # raises a KeyError in step_join(). Strip both before anything else uses these columns.
+        bom = chr(0xFEFF)
+        raw_df.columns = [str(col).lstrip(bom).replace('ï»¿', '').strip('"').strip() for col in raw_df.columns]
         _df_cache[cache_key] = raw_df.copy()
 
     # Apply prefixing
