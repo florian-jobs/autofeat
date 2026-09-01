@@ -163,6 +163,13 @@ class AutoFeat:
 
         return X_train
 
+    @staticmethod
+    def _normalize_column_name(name: str) -> str:
+        """Strips the same messy-header artifacts get_df_with_prefix() already cleans up (BOM,
+        mis-decoded BOM, wrapping quotes, stray whitespace), for a tolerant fallback comparison
+        when join_paths.csv and this run's own live re-read disagree on a column's exact name."""
+        return str(name).lstrip(chr(0xFEFF)).replace('ï»¿', '').strip('"').strip()
+
     def _resolve_column_name(self, column_name: str, df: pd.DataFrame, table_prefix: str) -> str:
         """
         Resolve placeholder column names (like 'col_4') to actual column names.
@@ -172,6 +179,10 @@ class AutoFeat:
         corpus file don't always agree on which columns are blank (e.g. depending on which CSV
         reader/engine indexed it), so an 'Unnamed: N' literal from join_paths.csv can point at the
         wrong column, or none at all, in df - resolved positionally here instead, same as 'col_N'.
+
+        Falls back to a normalized-name match (see _normalize_column_name) for any other mismatch
+        between join_paths.csv's recorded name and this run's live-read column names - e.g. a
+        lone stray quote character surviving in one reader's header parsing but not the other's.
 
         Args:
             column_name: The column name from join_paths (might be placeholder like 'col_4' or
@@ -193,12 +204,18 @@ class AutoFeat:
                 col_index = int(column_name.split('Unnamed: ')[1])
             except (ValueError, IndexError):
                 col_index = None
+        actual_columns = [col.replace(f"{table_prefix}.", "", 1) for col in df.columns if
+                          col.startswith(f"{table_prefix}.")]
         if col_index is not None:
-            # Get column names without prefix
-            actual_columns = [col.replace(f"{table_prefix}.", "", 1) for col in df.columns if
-                              col.startswith(f"{table_prefix}.")]
             if col_index < len(actual_columns):
                 return actual_columns[col_index]
+            return column_name
+        if column_name in actual_columns:
+            return column_name
+        target_norm = self._normalize_column_name(column_name)
+        matches = [c for c in actual_columns if self._normalize_column_name(c) == target_norm]
+        if len(matches) == 1:
+            return matches[0]
         return column_name
 
     def streaming_feature_selection(self, join_paths_df: pd.DataFrame, lake_data_folder: str, lake_table_sep: str,
