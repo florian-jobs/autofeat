@@ -166,25 +166,39 @@ class AutoFeat:
     def _resolve_column_name(self, column_name: str, df: pd.DataFrame, table_prefix: str) -> str:
         """
         Resolve placeholder column names (like 'col_4') to actual column names.
-        
+
+        Also resolves pandas' auto-generated 'Unnamed: N' names (assigned when a raw CSV's header
+        cell for that column is blank): join_paths.csv and this run's own live re-read of the
+        corpus file don't always agree on which columns are blank (e.g. depending on which CSV
+        reader/engine indexed it), so an 'Unnamed: N' literal from join_paths.csv can point at the
+        wrong column, or none at all, in df - resolved positionally here instead, same as 'col_N'.
+
         Args:
-            column_name: The column name from join_paths (might be placeholder like 'col_4')
+            column_name: The column name from join_paths (might be placeholder like 'col_4' or
+                pandas' 'Unnamed: 4')
             df: The dataframe containing the actual columns
             table_prefix: The table prefix used in the dataframe columns
-            
+
         Returns:
             The actual column name (without prefix) or original if not a placeholder
         """
+        col_index = None
         if column_name.startswith('col_'):
             try:
                 col_index = int(column_name.split('_')[1])
-                # Get column names without prefix
-                actual_columns = [col.replace(f"{table_prefix}.", "", 1) for col in df.columns if
-                                  col.startswith(f"{table_prefix}.")]
-                if col_index < len(actual_columns):
-                    return actual_columns[col_index]
             except (ValueError, IndexError):
-                pass
+                col_index = None
+        elif column_name.startswith('Unnamed: '):
+            try:
+                col_index = int(column_name.split('Unnamed: ')[1])
+            except (ValueError, IndexError):
+                col_index = None
+        if col_index is not None:
+            # Get column names without prefix
+            actual_columns = [col.replace(f"{table_prefix}.", "", 1) for col in df.columns if
+                              col.startswith(f"{table_prefix}.")]
+            if col_index < len(actual_columns):
+                return actual_columns[col_index]
         return column_name
 
     def streaming_feature_selection(self, join_paths_df: pd.DataFrame, lake_data_folder: str, lake_table_sep: str,
