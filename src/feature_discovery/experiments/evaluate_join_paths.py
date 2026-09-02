@@ -157,10 +157,8 @@ def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake
     `path` is an ordered list of (from_table, from_column, to_column, to_table) hops, as produced by
     `build_hop_list`. Each hop's `from_table` is either `base_node` or a table joined by an earlier hop.
 
-    Note: the base table's own join/key column is deliberately left prefixed here (unlike
-    target_column) - the hop merges below are keyed on f"{table}.{column}", so unprefixing it
-    would break every merge against the base table. baseline.py renames it back to its plain name
-    on the already-joined result instead, once merging is done.
+    Note: the base table's own key column stays prefixed here (unlike target_column) since the
+    hop merges below are keyed on f"{table}.{column}"; baseline.py renames it back afterward.
     """
     joined_df, _ = get_df_with_prefix(
         join_paths_df,

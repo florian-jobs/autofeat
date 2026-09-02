@@ -165,33 +165,18 @@ class AutoFeat:
 
     @staticmethod
     def _normalize_column_name(name: str) -> str:
-        """Strips the same messy-header artifacts get_df_with_prefix() already cleans up (BOM,
-        mis-decoded BOM, wrapping quotes, stray whitespace), for a tolerant fallback comparison
-        when join_paths.csv and this run's own live re-read disagree on a column's exact name."""
+        """Strips the same BOM/quote/whitespace artifacts get_df_with_prefix() cleans up, for a
+        tolerant fallback match when join_paths.csv and the live re-read disagree on a name."""
         return str(name).lstrip(chr(0xFEFF)).replace('ï»¿', '').strip('"').strip()
 
     def _resolve_column_name(self, column_name: str, df: pd.DataFrame, table_prefix: str) -> str:
         """
-        Resolve placeholder column names (like 'col_4') to actual column names.
+        Resolve a placeholder column name ('col_4', pandas' 'Unnamed: 4') to the actual column at
+        that position in df - join_paths.csv and this run's own live re-read don't always agree on
+        exact names (e.g. which columns have blank headers), so these are resolved positionally.
+        Falls back to a normalized-name match (see _normalize_column_name) for any other mismatch.
 
-        Also resolves pandas' auto-generated 'Unnamed: N' names (assigned when a raw CSV's header
-        cell for that column is blank): join_paths.csv and this run's own live re-read of the
-        corpus file don't always agree on which columns are blank (e.g. depending on which CSV
-        reader/engine indexed it), so an 'Unnamed: N' literal from join_paths.csv can point at the
-        wrong column, or none at all, in df - resolved positionally here instead, same as 'col_N'.
-
-        Falls back to a normalized-name match (see _normalize_column_name) for any other mismatch
-        between join_paths.csv's recorded name and this run's live-read column names - e.g. a
-        lone stray quote character surviving in one reader's header parsing but not the other's.
-
-        Args:
-            column_name: The column name from join_paths (might be placeholder like 'col_4' or
-                pandas' 'Unnamed: 4')
-            df: The dataframe containing the actual columns
-            table_prefix: The table prefix used in the dataframe columns
-
-        Returns:
-            The actual column name (without prefix) or original if not a placeholder
+        :return: The actual column name (without prefix), or the original if not resolved.
         """
         col_index = None
         if column_name.startswith('col_'):
@@ -275,10 +260,8 @@ class AutoFeat:
                 self.discovered.add(node)
                 logging.debug(f"Adjacent node: {node}")
 
-                # Real corpora can contain a second, independent copy of the same dataset under its
-                # own table_id (seen with imdb_movies and nyc_street_trees, each with a corpus entry
-                # sharing their own name) - joining against that copy is a self-join in disguise, not
-                # a genuine external feature, so skip it outright rather than let it get ranked.
+                # Corpora can contain a second copy of the base dataset under its own table_id -
+                # joining against it is a self-join in disguise, so skip it outright.
                 if node == self.base_table_id:
                     continue
 
@@ -287,19 +270,13 @@ class AutoFeat:
                 right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
                                                            table_sep=lake_table_sep, use_polars=self.use_polars)
 
-                # Drop leaky columns before this table's columns ever reach cardinality checks or
-                # scoring (streaming_relevance_redundancy's new_features below) - matching arda/qcr/
-                # cocoa, which exclude these at discovery time rather than filtering the result
-                # afterward, since ex-post filtering could still let a leaky column win a slot over
-                # a genuine one and silently change which join path gets ranked highest.
+                # Drop leaky columns before they reach cardinality checks/scoring below, matching
+                # arda/qcr/cocoa (discovery-time exclusion, not an ex-post filter).
                 table_id = node[:-4] if node.endswith(".csv") else node
                 leaky_columns = self.leaky_features.get(table_id)
                 if leaky_columns:
-                    # Derive column names from right_df (already read via get_df_with_prefix(),
-                    # with its BOM/quote/whitespace cleanup applied) instead of re-reading the raw
-                    # file separately here: a second, unhardened read silently dropped this whole
-                    # leaky-column exclusion on any file it failed to parse (falling back to an
-                    # empty raw_columns list), letting a known-leaky column through unfiltered.
+                    # Names from right_df (already cleaned via get_df_with_prefix()), not a second
+                    # raw read - that used to silently exclude nothing on any file it failed to parse.
                     prefix = f"{right_label}."
                     raw_columns = [c[len(prefix):] for c in right_df.columns if c.startswith(prefix)]
                     leaky_names = {raw_columns[i] for i in leaky_columns if i < len(raw_columns)}

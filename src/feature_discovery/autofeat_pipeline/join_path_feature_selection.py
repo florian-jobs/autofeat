@@ -57,9 +57,8 @@ class RelevanceRedundancy:
         features_to_use = [f for f in new_features if f != self.target_column]
 
         new_common_features = sorted(list(set(dataframe.columns).intersection(set(features_to_use))))
-        # Pearson/Spearman correlation need numeric input - a non-numeric (categorical/string) column
-        # here turns np.array(dataframe[new_common_features]) into an object-dtype array, which crashes
-        # pearson_correlation's np.sqrt with "loop of ufunc does not support argument 0 of type float".
+        # Pearson/Spearman need numeric input - a non-numeric column here turns the array object-dtype
+        # and crashes pearson_correlation's np.sqrt.
         new_common_features = [f for f in new_common_features if pd.api.types.is_numeric_dtype(dataframe[f])]
         if len(new_common_features) == 0:
             return []
