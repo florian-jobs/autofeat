@@ -288,13 +288,14 @@ class AutoFeat:
                 table_id = node[:-4] if node.endswith(".csv") else node
                 leaky_columns = self.leaky_features.get(table_id)
                 if leaky_columns:
-                    try:
-                        header = pd.read_csv(Path(lake_data_folder) / node, sep=lake_table_sep, nrows=0)
-                        raw_columns = list(header.columns)
-                    except Exception:
-                        raw_columns = []
-                    leaky_names = {raw_columns[i] for i in leaky_columns if i < len(raw_columns)}
+                    # Derive column names from right_df (already read via get_df_with_prefix(),
+                    # with its BOM/quote/whitespace cleanup applied) instead of re-reading the raw
+                    # file separately here: a second, unhardened read silently dropped this whole
+                    # leaky-column exclusion on any file it failed to parse (falling back to an
+                    # empty raw_columns list), letting a known-leaky column through unfiltered.
                     prefix = f"{right_label}."
+                    raw_columns = [c[len(prefix):] for c in right_df.columns if c.startswith(prefix)]
+                    leaky_names = {raw_columns[i] for i in leaky_columns if i < len(raw_columns)}
                     drop_cols = [c for c in right_df.columns if c.startswith(prefix) and c[len(prefix):] in leaky_names]
                     if drop_cols:
                         right_df = right_df.drop(columns=drop_cols)
