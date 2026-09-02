@@ -275,6 +275,13 @@ class AutoFeat:
                 self.discovered.add(node)
                 logging.debug(f"Adjacent node: {node}")
 
+                # Real corpora can contain a second, independent copy of the same dataset under its
+                # own table_id (seen with imdb_movies and nyc_street_trees, each with a corpus entry
+                # sharing their own name) - joining against that copy is a self-join in disguise, not
+                # a genuine external feature, so skip it outright rather than let it get ranked.
+                if node == self.base_table_id:
+                    continue
+
                 # Read the neighbour node (needed to check join-column cardinality before
                 # ranking the join keys).
                 right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
