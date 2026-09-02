@@ -175,6 +175,8 @@ class AUTOFEATBaseline:
 
         base_table_df, target_column_id = self._read_base_table(config, table_dir)
         target_column = base_table_df.columns[target_column_id]
+        # Join column is always first, by the same base-table convention ARDA/QCR/COCOA use.
+        key_column = base_table_df.columns[0]
         # Move the target column last, matching ARDABaseline/QCRBaseline/COCOABaseline's convention -
         # base_table_pd below (what actually gets written to the lake and joined against) needs this,
         # even though AutoFeat itself looks target_column up by name, not position.
@@ -326,7 +328,8 @@ class AUTOFEATBaseline:
                 ",",
                 _BASE_TABLE_SEP,
                 bfs_traversal.base_table_id,
-                bfs_traversal.target_column,
+                target=bfs_traversal.target_column,
+                key=key_column,
             )
 
         if dataframe is None:

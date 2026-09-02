@@ -152,7 +152,7 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
     return all_results, top_k_path_list, selected_features
 
 def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake_table_sep: str, base_table_sep: str,
-                   base_node: str, target: str = None):
+                   base_node: str, target: str = None, key: str = None):
     """
     `path` is an ordered list of (from_table, from_column, to_column, to_table) hops, as produced by
     `build_hop_list`. Each hop's `from_table` is either `base_node` or a table joined by an earlier hop.
@@ -162,7 +162,8 @@ def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake
         lake_data_folder,
         base_node,
         base_table_sep,
-        target
+        target_column=target,
+        key_column=key,
     )
 
     for from_table, from_column, to_column, to_table in path:
