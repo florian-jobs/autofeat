@@ -108,7 +108,6 @@ def get_df_with_prefix(
     node_id: str,
     table_sep: str,
     target_column=None,
-    key_column=None,
     use_polars: bool = False,
 ) -> tuple:
     """
@@ -118,10 +117,6 @@ def get_df_with_prefix(
     :param node_id: ID of the node - used to retrieve the corresponding node from the database
     :param target_column: Optional parameter. The name of the label/target column containing the classes,
             only needed when the dataset to read contains the class.
-    :param key_column: Optional parameter. The name of the base table's own join/key column - like
-            target_column, kept unprefixed so callers downstream (e.g. beluga's test(), which looks
-            up the key/target by their original, unprefixed names) can still find it. Only meaningful
-            for the base node; right-hand join candidates need their columns fully prefixed.
     :return: 0: A pandas dataframe whose columns are prefixed with the node label, 1: the node label
     """
     node = get_node_by_id(join_paths_df, node_id)
@@ -151,11 +146,9 @@ def get_df_with_prefix(
         raw_df.columns = [str(col).lstrip(bom).replace('ï»¿', '').strip('"').strip() for col in raw_df.columns]
         _df_cache[cache_key] = raw_df.copy()
 
-    # Apply prefixing - target_column and key_column (if given) are excluded, so they keep their
-    # original, unprefixed names for downstream code that looks them up by that name.
-    exclude = [c for c in (target_column, key_column) if c]
-    if exclude:
-        dataframe = raw_df.set_index(exclude).add_prefix(f"{node_label}.").reset_index()
+    # Apply prefixing
+    if target_column:
+        dataframe = raw_df.set_index([target_column]).add_prefix(f"{node_label}.").reset_index()
     else:
         dataframe = raw_df.add_prefix(f"{node_label}.")
 

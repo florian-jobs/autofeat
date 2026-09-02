@@ -329,8 +329,14 @@ class AUTOFEATBaseline:
                 _BASE_TABLE_SEP,
                 bfs_traversal.base_table_id,
                 target=bfs_traversal.target_column,
-                key=key_column,
             )
+            # join_from_path's hop-merges are keyed on f"{table}.{column}" internally, so the base
+            # table's own join column must stay prefixed there (unlike target_column, which nothing
+            # merges on) - rename it back to its plain name only now, on the already-joined result,
+            # so test()/DownstreamTask can still find it by that name.
+            prefixed_key = f"{bfs_traversal.base_table_id}.{key_column}"
+            if prefixed_key in dataframe.columns:
+                dataframe = dataframe.rename(columns={prefixed_key: key_column})
 
         if dataframe is None:
             raise ValueError(f"Join failed for path: {join_name}")
@@ -346,7 +352,11 @@ class AUTOFEATBaseline:
                   f"{dataframe.shape[0]} rows, {len(features)} selected columns "
                   f"(base table had {base_table_pd.shape[0]} rows, {base_table_pd.shape[1]} columns)")
 
-        return pl.from_pandas(dataframe[features])
+        # features never tracks the join/key column itself (it's not a "feature" to rank/select),
+        # so it has to be added back explicitly here or it silently drops out of the final table -
+        # test()/DownstreamTask needs it present under its plain name to key/sort/filter on.
+        final_columns = list(dict.fromkeys(features + [key_column]))
+        return pl.from_pandas(dataframe[final_columns])
 
 
 """
