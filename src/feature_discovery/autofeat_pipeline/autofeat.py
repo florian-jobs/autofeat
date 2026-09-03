@@ -191,10 +191,11 @@ class AutoFeat:
                 col_index = None
         actual_columns = [col.replace(f"{table_prefix}.", "", 1) for col in df.columns if
                           col.startswith(f"{table_prefix}.")]
-        if col_index is not None:
-            if col_index < len(actual_columns):
-                return actual_columns[col_index]
-            return column_name
+        if col_index is not None and col_index < len(actual_columns):
+            return actual_columns[col_index]
+        # col_index resolution failed (out of range, e.g. this file has fewer live-read columns
+        # than join_paths.csv expected) or column_name wasn't a placeholder to begin with - try an
+        # exact, then normalized, name match before giving up and returning the unresolved name.
         if column_name in actual_columns:
             return column_name
         target_norm = self._normalize_column_name(column_name)
@@ -493,6 +494,11 @@ class AutoFeat:
         to_column = self._resolve_column_name(join_prop['to_column'], right_df, right_label)
 
         right_df_fk = f"{right_label}.{to_column}"
+        if right_df_fk not in right_df.columns:
+            # join_paths.csv and this run's live re-read of the file can disagree on column count/
+            # order (e.g. ragged-line truncation), so a resolved name can still not exist here -
+            # skip this hop cleanly rather than KeyError on it.
+            return None, "", []
         right_df[right_df_fk] = right_df[right_df_fk].apply(process_key)
         # Step - Sample neighbour data - Transform to 1:1 or M:1
         sampled_right_df = right_df
