@@ -25,7 +25,7 @@ def main():
         shutil.copy(csv_file, CORPUS_DIR / csv_file.name)
 
     # from_table/to_table (not from_id/to_id) to match what beluga's own scripts/get_join_paths.py
-    # actually writes -- baseline.py normalizes this on load, so testing against the real column
+    # actually writes -- autofeat_baseline.py normalizes this on load, so testing against the real column
     # names here is what actually exercises that path instead of coincidentally bypassing it.
     connections = pd.read_csv(SOURCE / "connections.csv")
     join_paths = connections.rename(columns={

@@ -2,7 +2,7 @@
 Discover a join_paths.csv for one base table against a (possibly huge) corpus, without Neo4j and
 without scanning the whole corpus: Valentine schema-matches the base table against up to --limit
 candidate tables found under --corpora, keeps matches on --query_column above --threshold, and
-stages everything baseline.py/test_baseline.py need (a queries/<base_table>/ dir with the base table
+stages everything autofeat_baseline.py/test_baseline.py need (a queries/<base_table>/ dir with the base table
 CSV + join_paths.csv, and a corpus/<base_table>_lake/ dir with the matched tables).
 
 Example:

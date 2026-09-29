@@ -1,7 +1,7 @@
 # Thesis-reproduction entry point: runs the AutoFeat pipeline against a data/benchmark/<dataset>
 # table with a known KFK join graph (connections.csv) and writes per-path results to
 # results/thesis/<dataset>_<approach>.csv, for comparing reproduced accuracy against the numbers
-# reported in docs/assets/papers/ICDE_FeatureDiscovery.pdf. Separate from baseline.py, which is the
+# reported in docs/assets/papers/ICDE_FeatureDiscovery.pdf. Separate from autofeat_baseline.py, which is the
 # beluga integration adapter and has no CLI of its own.
 import os
 import sys

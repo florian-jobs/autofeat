@@ -158,7 +158,7 @@ def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake
     `build_hop_list`. Each hop's `from_table` is either `base_node` or a table joined by an earlier hop.
 
     Note: the base table's own key column stays prefixed here (unlike target_column) since the
-    hop merges below are keyed on f"{table}.{column}"; baseline.py renames it back afterward.
+    hop merges below are keyed on f"{table}.{column}"; autofeat_baseline.py renames it back afterward.
     """
     joined_df, _ = get_df_with_prefix(
         join_paths_df,

@@ -6,7 +6,9 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from baseline import AUTOFEATBaseline
+# autofeat_baseline.py lives next to this submodule (in evaluation/baselines/), not inside it.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from autofeat_baseline import AUTOFEATBaseline
 
 
 def parse_args():
@@ -39,7 +41,7 @@ def limit_join_paths(join_paths_path: Path, base_table_id: str, limit: int) -> P
     """Overwrites join_paths.csv in place, restricted to a BFS-bounded subgraph of at most `limit`
     tables, after backing up the original alongside it (join_paths.csv.bak).
 
-    baseline.py now reads join_paths.csv from a fixed path (table_dir / "join_paths.csv"), matching
+    autofeat_baseline.py now reads join_paths.csv from a fixed path (table_dir / "join_paths.csv"), matching
     ARDABaseline/QCRBaseline/COCOABaseline, so there's no config field left to point it at a side
     file - overwriting in place (like a real Config would need to see) is the only way to keep this
     --limit sampling feature working. Returns the backup path; restore_join_paths() undoes this.

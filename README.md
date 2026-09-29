@@ -2,7 +2,7 @@
 
 Codebase for [AutoFeat: Transitive Feature Discovery over Join Paths](ICDE_FeatureDiscovery.pdf), reworked to run
 without a live Neo4j instance. Neo4j is only needed by the legacy CLI (`cli.py`, `run.py`), not by the integration
-adapter (`baseline.py`).
+adapter (`../autofeat_baseline.py`).
 
 ## Quick start (server)
 
@@ -18,7 +18,7 @@ Expected: `credit` reaches 6 tables, ~**0.735 accuracy** (paper: ~0.75, "Linear"
 
 ## Server-side testing (`test_baseline.py`)
 
-No real `beluga` package in this checkout — `test_baseline.py` fakes `config` as a `SimpleNamespace`; `baseline.py`
+No real `beluga` package in this checkout — `test_baseline.py` fakes `config` as a `SimpleNamespace`; `../autofeat_baseline.py`
 handles that identically (see `try/except ImportError` in `_read_base_table`).
 
 ```bash
@@ -86,7 +86,7 @@ So the real, valid data point is: **37 tables joined against the authentic corpu
 
 | Path | Role |
 | --- | --- |
-| `baseline.py` | `AUTOFEATBaseline` — integration adapter, `run(config: beluga.config.schema.Config) -> polars.DataFrame`, matching ARDABaseline/QCRBaseline/COCOABaseline |
+| `../autofeat_baseline.py` | `AUTOFEATBaseline` — integration adapter, `run(config: beluga.config.schema.Config) -> polars.DataFrame`, matching ARDABaseline/QCRBaseline/COCOABaseline |
 | `discover_join_paths.py` | Generates `join_paths.csv` for a base table with none yet |
 | `setup_baseline_test_fixture.py` / `test_baseline.py` | Local test fixture / server-side test runner (see above) |
 | `src/feature_discovery/autofeat_pipeline/autofeat.py` | `AutoFeat` — BFS traversal over join paths, core ranking/state |
