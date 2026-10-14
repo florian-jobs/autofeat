@@ -32,18 +32,11 @@ def get_adjacent_nodes(join_paths_df: pd.DataFrame, base_node_id: str):
 
 
 def get_relation_properties_node_name(join_paths_df: pd.DataFrame, from_id: str, to_id: str):
-    """Simulate Neo4j: return relationship properties between two nodes, oriented so from_label/
-    from_column always correspond to the caller's `from_id` (the already-joined side), regardless
-    of which direction the row happens to be stored in -- a join_paths_df that stores both
-    directions of a match (independently-set from/to columns) would otherwise point the caller at
-    a column that only exists in the not-yet-joined table, crashing the join a few steps
-    downstream. A join_paths_df that only ever stores one direction per edge (parent -> child) is
-    a no-op here. Sorted by weight descending, stably: the caller (autofeat.py) picks its
-    highest_ranked_join_keys by taking a prefix of this list and stopping at the first weight that
-    differs from the first entry's, assuming descending order -- the real Neo4j backend's Cypher
-    enforces this explicitly (`ORDER BY r.weight DESC`) but this in-memory version didn't. kind=
-    "stable" so tied weights (e.g. a uniform weight=1 graph) keep their original relative order
-    instead of being reshuffled by pandas' default, non-stable quicksort."""
+    """Replaces the neo4j query: relationship properties between two nodes.
+
+    from_column always belongs to from_id, no matter which direction the row is stored in.
+    Sorted by weight descending like the neo4j version (ORDER BY r.weight DESC), stable sort so
+    equal weights keep their order."""
     matches = join_paths_df[
         ((join_paths_df["from_id"] == from_id) & (join_paths_df["to_id"] == to_id))
         | ((join_paths_df["from_id"] == to_id) & (join_paths_df["to_id"] == from_id))
@@ -138,8 +131,7 @@ def get_df_with_prefix(
                 f'{lake_data_folder}/{node_id}', header=0, engine="python", encoding="utf8", sep=table_sep,
                 on_bad_lines='skip'
             )
-        # Some corpus files start with a UTF-8 BOM and/or quote their header cells, turning e.g.
-        # 'REF_DATE' into 'ï»¿"REF_DATE"' and mismatching the clean name join_paths.csv expects.
+        # strip BOM and quotes from headers
         bom = chr(0xFEFF)
         raw_df.columns = [str(col).lstrip(bom).replace('ï»¿', '').strip('"').strip() for col in raw_df.columns]
         _df_cache[cache_key] = raw_df.copy()

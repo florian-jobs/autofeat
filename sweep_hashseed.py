@@ -1,29 +1,15 @@
 """
-Sweep PYTHONHASHSEED across many seeds and quantify how much AutoFeat's winning join path
-varies with it.
+Run AutoFeat with different PYTHONHASHSEED values and check how much the best join path changes.
 
-Why this matters (and why it's not something to "fix"): AutoFeat's Algorithm 1
-(ICDE_FeatureDiscovery.pdf, Section VI) maintains a single selected-features set Rsel across
-the *entire* DRG traversal -- its own update rule is the plain set union `Rsel = Rsel U Rred`
-(Line 18), with no per-join-path scoping. src/feature_discovery/autofeat_pipeline/autofeat.py's
-`all_selected_features = self.partial_join_selected_features[previous_join_name]` (no `.copy()`)
-implements that literally, and matches upstream delftdata/autofeat byte-for-byte. Because Rsel
-is global, every candidate's redundancy score (and hence its rank) is a function of *when* in
-the traversal it gets evaluated -- i.e. of queue/previous_queue set-iteration order, i.e. of
-PYTHONHASHSEED. That's an inherent property of the published algorithm, not an implementation
-bug, so there's no seed-independent fix that stays faithful to Algorithm 1. This script measures
-the resulting variance instead of chasing a single "correct" seed.
+Rsel in Algorithm 1 is shared over the whole traversal (Rsel = Rsel U Rred), same as in upstream
+autofeat. So the redundancy scores depend on the order tables are visited, which depends on set
+iteration order, i.e. on PYTHONHASHSEED. This is how the algorithm works, not a bug, so we just
+measure the variance.
 
-Two modes:
-  --mode bfs   (default, fast): runs only AutoFeat's BFS ranking step (no model training) and
-               records the top-ranked candidate's depth per seed. Cheap enough to scan dozens
-               of seeds and see the shape of the distribution.
-  --mode full  (slow, exact): runs the full ablation.py pipeline (BFS + train top-k + pick best
-               accuracy -- the paper's own selection rule, "After training, we select the best
-               join path based on the resulting ML model accuracy", Section VII-A) per seed and
-               records the actually-reported tables_joined + accuracy, archiving each seed's raw
-               results/thesis/<dataset>_AutoFeat.csv. Use this on a handful of seeds to confirm
-               the bfs-mode signal holds for the real, paper-comparable metric.
+Modes:
+  --mode bfs   (default): only the BFS ranking, no training. Logs depth of the top candidate per seed.
+  --mode full  full ablation.py run (BFS + training, best accuracy wins). Logs tables_joined and
+               accuracy and keeps results/thesis/<dataset>_AutoFeat.csv for each seed. Slow.
 
 Usage:
     uv run python sweep_hashseed.py --dataset bioresponse --seeds 0-29
@@ -54,8 +40,7 @@ def parse_seeds(spec: str):
 
 
 def run_bfs_worker(argv):
-    """Runs inside a subprocess with PYTHONHASHSEED already fixed by the parent's env. Prints one
-    SWEEP_RESULT <json> line so the parent can recover the result without touching its own seed."""
+    """Runs in a subprocess with PYTHONHASHSEED set, prints a SWEEP_RESULT <json> line."""
     sys.path.insert(0, "src")
     from feature_discovery.experiments.ablation import load_join_paths
     from feature_discovery.experiments.init_datasets import init_datasets

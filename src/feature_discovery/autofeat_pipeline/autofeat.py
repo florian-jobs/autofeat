@@ -32,13 +32,9 @@ from feature_discovery.graph_processing.neo4j_transactions import (
 # Set PYTHONHASHSEED for deterministic hashing
 os.environ['PYTHONHASHSEED'] = '42'
 
-# Hard rule: never join on a (near-)binary column. Aurum-style joinability over datasets full of
-# binary indicator columns (e.g. covertype's ~40 Soil_Type flags) flags many binary<->binary pairs
-# as joinable under the fixed 0.55 Valentine / 0.65 value-ratio thresholds, producing a
-# combinatorial blowup of join *paths*. A binary column is never a meaningful foreign key, so we
-# drop any join candidate whose join column has at most this many distinct values. Ported from
-# upstream autofeat_og_ingestion (delftdata/autofeat); independent of the paper-fixed
-# overlap/value-ratio thresholds, so this doesn't deviate from Algorithm 1 itself.
+# don't join on (near-)binary columns. datasets with lots of flag columns (e.g. covertype) otherwise
+# get tons of binary<->binary matches and the number of join paths explodes. taken from upstream
+# autofeat_og_ingestion.
 MIN_JOIN_KEY_CARDINALITY = 3
 
 
@@ -137,8 +133,7 @@ class AutoFeat:
             table_sep=self.base_table_sep, use_polars=self.use_polars
         )
 
-        # Stratified sampling. `self.task` is always CLASSIFICATION ("binary") or REGRESSION
-        # ("regression") - never the literal string "classification" - see dataset_object.py.
+        # Stratified sampling (task is "binary" or "regression", see dataset_object.py)
         if self.sample_size < base_table_df.shape[0]:
             if self.task == CLASSIFICATION:
                 X_train, X_test = train_test_split(
@@ -165,16 +160,13 @@ class AutoFeat:
 
     @staticmethod
     def _normalize_column_name(name: str) -> str:
-        """Strips the same BOM/quote/whitespace artifacts get_df_with_prefix() cleans up, for a
-        tolerant fallback match when join_paths.csv and the live re-read disagree on a name."""
+        """Strip BOM, quotes and whitespace like get_df_with_prefix() does."""
         return str(name).lstrip(chr(0xFEFF)).replace('ï»¿', '').strip('"').strip()
 
     def _resolve_column_name(self, column_name: str, df: pd.DataFrame, table_prefix: str) -> str:
         """
-        Resolve a placeholder column name ('col_4', pandas' 'Unnamed: 4') to the actual column at
-        that position in df - join_paths.csv and this run's own live re-read don't always agree on
-        exact names (e.g. which columns have blank headers), so these are resolved positionally.
-        Falls back to a normalized-name match (see _normalize_column_name) for any other mismatch.
+        Map placeholder names ('col_4', 'Unnamed: 4') to the column at that position in df,
+        otherwise try an exact or normalized name match.
 
         :return: The actual column name (without prefix), or the original if not resolved.
         """
@@ -193,7 +185,7 @@ class AutoFeat:
                           col.startswith(f"{table_prefix}.")]
         if col_index is not None and col_index < len(actual_columns):
             return actual_columns[col_index]
-        # fall through to exact/normalized name match on failed or non-placeholder resolution
+        # no placeholder, match by name
         if column_name in actual_columns:
             return column_name
         target_norm = self._normalize_column_name(column_name)
@@ -211,14 +203,8 @@ class AutoFeat:
         if previous_queue is None:
             previous_queue = queue.copy()
 
-        # Anytime hook for AutoFeat. Each BFS queue-pop corresponds to one
-        # outer iteration. We emit the cumulative set of features collected
-        # across all explored join paths up to that point and break when the
-        # budget expires. The final ``evaluate_paths`` step is not run here,
-        # so the trajectory rows record AutoFeat's BFS-discovered candidate
-        # set rather than its final top-k. The caller appends one extra
-        # trajectory point post-``evaluate_paths`` if it wants the natural
-        # endpoint to appear on the plot.
+        # anytime hook: emits the features found so far after each BFS step, stops when the
+        # budget runs out. evaluate_paths isn't part of this, the caller adds that point.
         def _emit_progress(iter_idx):
             if trajectory_emitter is None:
                 return
@@ -259,23 +245,19 @@ class AutoFeat:
                 self.discovered.add(node)
                 logging.debug(f"Adjacent node: {node}")
 
-                # Corpora can contain a second copy of the base dataset under its own table_id -
-                # joining against it is a self-join in disguise, so skip it outright.
+                # skip copies of the base table in the corpus
                 if node == self.base_table_id:
                     continue
 
-                # Read the neighbour node (needed to check join-column cardinality before
-                # ranking the join keys).
+                # read neighbour table (needed for the cardinality check below)
                 right_df, right_label = get_df_with_prefix(join_paths_df, lake_data_folder, node,
                                                            table_sep=lake_table_sep, use_polars=self.use_polars)
 
-                # Drop leaky columns before they reach cardinality checks/scoring below, matching
-                # arda/qcr/cocoa (discovery-time exclusion, not an ex-post filter).
+                # drop leaky columns (same as arda/qcr/cocoa)
                 table_id = node[:-4] if node.endswith(".csv") else node
                 leaky_columns = self.leaky_features.get(table_id)
                 if leaky_columns:
-                    # Names from right_df (already cleaned via get_df_with_prefix()), not a second
-                    # raw read - that used to silently exclude nothing on any file it failed to parse.
+                    # use the cleaned names from right_df
                     prefix = f"{right_label}."
                     raw_columns = [c[len(prefix):] for c in right_df.columns if c.startswith(prefix)]
                     leaky_names = {raw_columns[i] for i in leaky_columns if i < len(raw_columns)}
@@ -284,10 +266,7 @@ class AutoFeat:
                         right_df = right_df.drop(columns=drop_cols)
                 logging.debug(f"\tRight table shape: {right_df.shape}")
 
-                # Get the join keys, then HARD-DROP (near-)binary join columns before ranking
-                # (see MIN_JOIN_KEY_CARDINALITY above). Filtering the full candidate list (not
-                # just the top-weight one) lets a lower-weight high-cardinality key survive when
-                # the top-weight candidate is binary.
+                # get join keys and drop binary ones (see MIN_JOIN_KEY_CARDINALITY)
                 join_keys = get_relation_properties_node_name(join_paths_df, from_id=base_node_id, to_id=node)
                 logging.debug(f"\tJoin keys found: {join_keys}")
                 _kept = []
@@ -317,14 +296,7 @@ class AutoFeat:
 
                 current_queue = set()
                 logging.debug(f"\tPrevious queue: {previous_queue}")
-                # Deliberately reads and drains the shared `previous_queue`, not a per-sibling
-                # snapshot: each neighbour's joins build on top of whatever the previous
-                # neighbour in this loop produced. This matches the upstream delftdata/autofeat
-                # implementation exactly (verified against
-                # https://github.com/delftdata/autofeat/blob/main/src/feature_discovery/autofeat_pipeline/autofeat.py)
-                # -- a prior local "fix" here (snapshotting previous_queue per sibling, treating
-                # siblings as independent branches) was reverted because it diverged from the
-                # paper's actual, shipped algorithm rather than correcting a bug in it.
+                # previous_queue is shared between neighbours on purpose, same as upstream autofeat
                 while len(previous_queue) > 0:
                     previous_join_name = previous_queue.pop()
 
@@ -418,10 +390,7 @@ class AutoFeat:
             _iter_idx += 1
             _emit_progress(_iter_idx)
 
-        # `all_neighbours` only ever contains nodes not yet in `self.discovered` at the time
-        # they were added (see the `- set(self.discovered)` filter above), so recursion should
-        # continue whenever there's anything new to expand from; it terminates naturally once a
-        # level finds no new neighbours (the recursive call's own `if len(queue) == 0` guard).
+        # stop when there are no new neighbours
         if not all_neighbours:
             return
         if budget_clock is not None and budget_clock.expired:

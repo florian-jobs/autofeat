@@ -57,8 +57,7 @@ class RelevanceRedundancy:
         features_to_use = [f for f in new_features if f != self.target_column]
 
         new_common_features = sorted(list(set(dataframe.columns).intersection(set(features_to_use))))
-        # Pearson/Spearman need numeric input - a non-numeric column here turns the array object-dtype
-        # and crashes pearson_correlation's np.sqrt.
+        # pearson/spearman only work on numeric columns
         new_common_features = [f for f in new_common_features if pd.api.types.is_numeric_dtype(dataframe[f])]
         if len(new_common_features) == 0:
             return []
@@ -91,9 +90,7 @@ class RelevanceRedundancy:
         relevant_features: List[str],
         target_column: pd.Series,
     ) -> List[tuple]:
-        # dtype=int matters even for the empty case: np.array([]) defaults to float64, and numpy
-        # refuses to use a float array for fancy indexing (dataframe[:, selected_features_int]
-        # below), raising IndexError instead of just yielding a zero-width selection.
+        # dtype=int, otherwise an empty array is float and indexing with it fails
         selected_features_int = np.array(
             [i for i, value in enumerate(dataframe.columns) if value in selected_features], dtype=int
         )
@@ -113,10 +110,7 @@ class RelevanceRedundancy:
         relevance = np.apply_along_axis(
             self.cached_mutual_information, 0, np.array(discr_dataframe)[:, np.array(new_features_int)], target_column
         )
-        # apply_along_axis refuses a zero-width axis outright (selected_features_int empty means
-        # nothing has been joined in yet, e.g. scoring the base table's own first hop), and the
-        # 1/size normalisation below would divide by zero in that case too -- short-circuit to "no
-        # redundancy yet" (zeros) rather than crash, since there's nothing to be redundant with.
+        # nothing selected yet (first hop), so no redundancy
         if selected_features_int.size == 0:
             redundancy = np.zeros(new_features_int.size)
         else:

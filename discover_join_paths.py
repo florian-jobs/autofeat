@@ -1,9 +1,7 @@
 """
-Discover a join_paths.csv for one base table against a (possibly huge) corpus, without Neo4j and
-without scanning the whole corpus: Valentine schema-matches the base table against up to --limit
-candidate tables found under --corpora, keeps matches on --query_column above --threshold, and
-stages everything autofeat_baseline.py/test_baseline.py need (a queries/<base_table>/ dir with the base table
-CSV + join_paths.csv, and a corpus/<base_table>_lake/ dir with the matched tables).
+Build a join_paths.csv for one base table without neo4j. Runs valentine on the base table and up to
+--limit tables from --corpora, keeps matches on --query_column above --threshold, and writes
+queries/<base_table>/ and corpus/<base_table>_lake/ for test_baseline.py.
 
 Example:
     uv run python discover_join_paths.py \\
@@ -41,15 +39,13 @@ def parse_args():
 
 def find_candidates(corpora_dir: Path, input_path: Path, limit):
     """
-    Prefer tables "near" --input: siblings under its parent directory (e.g. other tables under
-    .../nyc/ if --input is .../nyc/nyc-finance-39g5-gbp3/table.csv) are far more likely to be
-    genuinely joinable than an arbitrary alphabetical slice of the whole corpus. Only fall back to
-    the rest of --corpora if --limit isn't filled by nearby tables.
+    Take tables from the same folder as --input first (more likely to be joinable), then the rest
+    of --corpora until --limit is reached.
     """
     input_resolved = input_path.resolve()
     local_scope = input_path.resolve().parent.parent
     if corpora_dir.resolve() not in local_scope.parents and local_scope != corpora_dir.resolve():
-        local_scope = corpora_dir  # --input isn't nested under --corpora; no meaningful "nearby" scope
+        local_scope = corpora_dir  # --input is not inside --corpora
 
     nearby = sorted(p for p in local_scope.rglob("*.csv") if p.resolve() != input_resolved)
     if limit is None:
@@ -64,8 +60,7 @@ def find_candidates(corpora_dir: Path, input_path: Path, limit):
     return candidates
 
 def table_id_for(csv_path: Path) -> str:
-    # Real corpora tend to store one CSV per uniquely-named folder (e.g. .../nyc-finance-39g5-gbp3/table.csv);
-    # the folder name is the meaningful, unique id. Falls back to the file's own stem if it's already unique.
+    # corpora usually have one table.csv per folder, so use the folder name
     return csv_path.parent.name or csv_path.stem
 
 def main():
@@ -74,8 +69,7 @@ def main():
     corpora_dir = Path(args.corpora).expanduser()
     base_table_id = args.base_table_id or table_id_for(input_path)
 
-    # A row sample is enough for schema matching (column names + a representative slice of values) and
-    # avoids reading full multi-million-row tables just to compare column types/overlap.
+    # a sample is enough for schema matching
     base_df = pd.read_csv(input_path, encoding="utf8", nrows=args.sample_rows)
     if args.query_column not in base_df.columns:
         raise ValueError(

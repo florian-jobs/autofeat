@@ -1,14 +1,11 @@
 """
-Split a single an OpenML tabular classification dataset into a snowflake-schema
-benchmark dataset, following the "Benchmark Setting" construction described in the AutoFeat paper
-(Section VII-A): a base table + a random tree of child tables, linked by synthetic KFK columns that
-are just the shared row-index copied along each branch (so every join is lossless and 1:1, matching
-the paper's data/benchmark/credit layout: table_0_0.csv -> table_1_1.csv/table_1_2.csv -> ...).
+Split an OpenML classification dataset into a snowflake schema like the benchmark setting in the
+AutoFeat paper (Section VII-A): base table + random tree of child tables, joined 1:1 on the row index.
 
-Output layout matches what ablation.py / load_join_paths() already expect:
-    data/benchmark/<name>/table_<depth>_<idx>.csv   (one per node, base is table_0_0.csv)
-    data/benchmark/<name>/connections.csv            (fk_table, fk_column, pk_table, pk_column)
-and a row appended to data/benchmark/datasets.csv so it flows through init_datasets()/ablation.py.
+Writes:
+    data/benchmark/<name>/table_<depth>_<idx>.csv   (base is table_0_0.csv)
+    data/benchmark/<name>/connections.csv
+and adds a row to data/benchmark/datasets.csv.
 
 Example:
     uv run python build_benchmark_dataset.py \\
@@ -69,8 +66,7 @@ def main():
     nodes = build_tree(args.num_tables, args.max_depth, rng)
     node_ids = [n[0] for n in nodes]
 
-    # Randomly partition feature columns across all tables (base included), respecting the minimum
-    # per non-base table so every child table actually carries some real data.
+    # spread feature columns randomly over the tables, each child gets at least min_cols_per_table
     shuffled = feature_columns[:]
     rng.shuffle(shuffled)
     columns_per_table = {tid: [] for tid in node_ids}
@@ -86,7 +82,7 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     row_id = pd.RangeIndex(len(df))
-    own_key = {}  # table_id -> its own exposed key column name (only if it has children)
+    own_key = {}  # table_id -> key column (only tables with children)
     children_of = {tid: [] for tid in node_ids}
     parent_of = {}
     for tid, _depth, parent_id in nodes:

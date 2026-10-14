@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-# autofeat_baseline.py lives next to this submodule (in evaluation/baselines/), not inside it.
+# autofeat_baseline.py is in evaluation/baselines/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from autofeat_baseline import AUTOFEATBaseline
 
@@ -38,13 +38,10 @@ def parse_args():
 
 
 def limit_join_paths(join_paths_path: Path, base_table_id: str, limit: int) -> Path:
-    """Overwrites join_paths.csv in place, restricted to a BFS-bounded subgraph of at most `limit`
-    tables, after backing up the original alongside it (join_paths.csv.bak).
+    """Cut join_paths.csv down to at most `limit` tables (BFS from the base table).
 
-    autofeat_baseline.py now reads join_paths.csv from a fixed path (table_dir / "join_paths.csv"), matching
-    ARDABaseline/QCRBaseline/COCOABaseline, so there's no config field left to point it at a side
-    file - overwriting in place (like a real Config would need to see) is the only way to keep this
-    --limit sampling feature working. Returns the backup path; restore_join_paths() undoes this.
+    Overwrites the file in place since autofeat_baseline.py always reads table_dir / "join_paths.csv".
+    The original is saved as join_paths.csv.bak, restore with restore_join_paths().
     """
     join_paths_df = pd.read_csv(join_paths_path)
 
@@ -70,15 +67,12 @@ def limit_join_paths(join_paths_path: Path, base_table_id: str, limit: int) -> P
 
 
 def restore_join_paths(join_paths_path: Path, backup_path: Path) -> None:
-    """Undoes limit_join_paths(): restores the original join_paths.csv from its backup."""
+    """Restore join_paths.csv from the backup."""
     shutil.move(backup_path, join_paths_path)
 
 
 def check_correctness(result: pd.DataFrame, base_table: str, args) -> bool:
-    """Print row/column/null-coverage stats and apply --min-rows / --max-null-ratio thresholds if given.
-
-    Returns False (and the caller should exit non-zero) if a threshold was violated.
-    """
+    """Print row/column/null stats and check --min-rows / --max-null-ratio. Returns False if a check fails."""
     ok = True
     n_rows, n_cols = result.shape
     joined_columns = [c for c in result.columns if not c.startswith(f"{base_table}.csv.")]
@@ -136,9 +130,7 @@ def main():
     try:
         print(result)
     except UnicodeEncodeError:
-        # Windows console (cp1252) can't display some Unicode content in the augmented data --
-        # the pipeline already succeeded above, this is only the diagnostic print. Not an issue on
-        # the actual (Linux, UTF-8) production/beluga environment.
+        # windows console (cp1252) can't print some characters
         enc = sys.stdout.encoding or "ascii"
         print(str(result).encode(enc, errors="replace").decode(enc))
 

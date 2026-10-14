@@ -1,37 +1,17 @@
-# Thesis-reproduction entry point: runs the AutoFeat pipeline against a data/benchmark/<dataset>
-# table with a known KFK join graph (connections.csv) and writes per-path results to
-# results/thesis/<dataset>_<approach>.csv, for comparing reproduced accuracy against the numbers
-# reported in docs/assets/papers/ICDE_FeatureDiscovery.pdf. Separate from autofeat_baseline.py, which is the
-# beluga integration adapter and has no CLI of its own.
+# Reproduce the paper results: runs AutoFeat on data/benchmark/<dataset> and writes
+# results/thesis/<dataset>_<approach>.csv. Not used by autofeat_baseline.py.
 import os
 import sys
 
-# Must run before numpy/pandas are imported anywhere below (they trigger OpenBLAS's thread-pool
-# sizing at import time): AutoGluon's model training spawns its own worker processes internally,
-# and if each of those processes' BLAS calls grabs a thread pool sized to the core count, total
-# demanded threads exceeds OpenBLAS's hardcoded 128-thread-context build limit on many-core
-# servers (hit on hercules). Pinning to 1 thread per process forces all parallelism to come from
-# AutoGluon's/joblib's own process fan-out instead of nested BLAS thread pools. `env.copy()` below
-# (for the PYTHONHASHSEED relaunch) picks these up too, so the same fix reaches the child process.
+# one blas thread per process, autogluon workers otherwise hit openblas' 128 thread limit on hercules.
+# has to be set before numpy is imported.
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
-# `os.environ['PYTHONHASHSEED'] = '42'` elsewhere in this codebase (autofeat.py,
-# evaluation_algorithms.py) is a no-op for the *current* process: CPython reads PYTHONHASHSEED
-# exactly once, at interpreter startup, to seed str/set/dict hash randomization. Setting it from
-# inside an already-running process has zero effect on that process's hashes. Since BFS traversal
-# uses sets (self.discovered, queue, all_neighbours) whose iteration order depends on those
-# hashes - and connections.csv gives every edge weight=1, so tie-breaking leans heavily on that
-# order - every invocation was picking a randomly different traversal order, changing which join
-# path got ranked/trained as "best" from run to run (confirmed empirically: ranking scores for
-# credit differed between runs without this). Fix: re-launch with PYTHONHASHSEED set in the real
-# environment before Python starts, which is the only place it actually takes effect. Uses
-# subprocess rather than os.execvpe(..) for the re-launch: process-image replacement via execvpe
-# was found to segfault under uv's Windows launcher.
-#
-# Default seed is 42, but an already-set PYTHONHASHSEED in the environment is honoured instead of
-# being overridden -- lets you explore how BFS tie-breaking (and thus which join path/how many
-# tables get chained) changes with the seed, e.g. `PYTHONHASHSEED=7 uv run python ablation.py ...`.
+# PYTHONHASHSEED only works if it's set before python starts (setting os.environ in autofeat.py does
+# nothing). The BFS iterates over sets, so without it the join paths change between runs.
+# So restart the script with the seed set (default 42). subprocess because os.execvpe segfaults with uv
+# on windows.
 if "PYTHONHASHSEED" not in os.environ:
     import subprocess
 
@@ -84,10 +64,8 @@ def autofeat(
         sample_size: int = 3000,
 ) -> Tuple[List[Result], List[Tuple], List[str]]:
     """
-    Run AutoFeat's BFS join-path discovery for `dataset`, then evaluate the top-k ranked paths with
-    `algorithm` (see evaluation_algorithms.get_hyperparameters for supported values). Writes one row
-    per evaluated path to results/thesis/<dataset.base_table_label>_<approach>.csv and returns the
-    same results alongside the ranked path list and the union of selected features.
+    Run AutoFeat's BFS on `dataset` and evaluate the top-k paths with `algorithm`.
+    Results go to results/thesis/<dataset.base_table_label>_<approach>.csv.
     """
     logging.debug(f"Running on TFD (Transitive Feature Discovery) result with AutoGluon")
 
@@ -136,7 +114,7 @@ def autofeat(
         result.cutoff_threshold = value_ratio
 
     logging.debug("Save results ... ")
-    RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)  # not guaranteed to exist on a fresh clone/pull
+    RESULTS_FOLDER.mkdir(parents=True, exist_ok=True)  # missing on a fresh clone
     pd.DataFrame(all_results).to_csv(RESULTS_FOLDER / f"{dataset.base_table_label}_{approach}.csv", index=False)
 
     return all_results, top_k_paths, selected_features

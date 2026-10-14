@@ -1,9 +1,7 @@
-# Join-path names are built by chaining hops together. Table/column ids from real corpora routinely
-# contain dashes (e.g. Socrata-style ids like "nyc-finance-39g5-gbp3"), so plain "-"/"--" can't be used
-# as delimiters without ambiguity. These are non-printable control characters that can't collide with
-# any real table or column name.
-HOP_SEP = "\x1e"    # separates one hop from the next
-FIELD_SEP = "\x1f"  # separates the 4 fields (from_table, from_column, to_column, to_table) within a hop
+# separators for join path names. table ids in real corpora contain dashes (e.g. "nyc-finance-39g5-gbp3"),
+# so use control characters instead of "-"/"--"
+HOP_SEP = "\x1e"    # between hops
+FIELD_SEP = "\x1f"  # between from_table, from_column, to_column, to_table
 
 
 def get_path_length(path: str) -> int:

@@ -1,9 +1,6 @@
 """
-Summarize results/thesis/<dataset>_<approach>.csv files into one row per dataset+algorithm:
-the best (highest-accuracy) evaluated join path, with how many tables it joined. Meant as the
-local half of comparing against the AutoFeat paper's numbers (docs/assets/papers/ICDE_FeatureDiscovery.pdf,
-Table II for OpenML ceiling references, Figures 4-7 for AutoFeat's own reported accuracy per
-dataset/algorithm).
+Summarize results/thesis/<dataset>_<approach>.csv: best join path per dataset+algorithm and how many
+tables it joined. For comparing with the paper (Table II, Figures 4-7).
 
 Usage:
     uv run python summarize_results.py [--results-dir results/thesis]
@@ -37,7 +34,7 @@ def main():
         for algorithm, group in df.groupby("algorithm"):
             best = group.loc[group["accuracy"].idxmax()]
             path = ast.literal_eval(best["data_path"]) if isinstance(best["data_path"], str) else []
-            tables_joined = len({hop[3] for hop in path}) + 1 if path else 1  # +1 for the base table
+            tables_joined = len({hop[3] for hop in path}) + 1 if path else 1  # +1 for base table
             rows.append({
                 "dataset": best["data_label"],
                 "algorithm": algorithm,

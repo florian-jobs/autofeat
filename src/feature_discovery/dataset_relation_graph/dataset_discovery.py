@@ -3,12 +3,8 @@ import itertools
 import os
 from typing import List
 
-# Parallel(n_jobs=-1) below spawns one worker *process* per CPU core. Each worker's numpy/pandas
-# calls then independently try to open a BLAS thread pool also sized to the core count, so total
-# demanded threads scales ~quadratically with core count. On many-core servers (e.g. hercules)
-# that exceeds OpenBLAS's hardcoded 128-thread-context build limit and it aborts. Pin each
-# worker's BLAS libs to a single thread so all the parallelism comes from joblib's process fan-out
-# instead of nested thread pools -- must be set before numpy is imported anywhere in the process.
+# one blas thread per joblib worker, otherwise openblas crashes on hercules (128 thread limit).
+# has to be set before numpy is imported.
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 

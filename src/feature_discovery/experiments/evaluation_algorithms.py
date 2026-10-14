@@ -89,16 +89,11 @@ def run_auto_gluon(dataframe: pd.DataFrame, target_column: str, problem_type: st
     from autogluon.tabular import TabularPredictor
     import hashlib
 
-    # The dataset splits label a regression target as 'continuous', but AutoGluon
-    # only recognises 'binary'/'multiclass'/'regression'/'quantile' -- passing
-    # 'continuous' raises NotImplementedError in Cleaner.construct and also breaks
-    # the regression score-type selection below. Normalise here.
+    # autogluon doesn't know 'continuous'
     if problem_type == 'continuous':
         problem_type = 'regression'
 
-    # Default AutoGluon model path: prefer a writable project-local tmp dir,
-    # falling back to the system tmp. Avoid hard-coded /mnt paths that may be
-    # read-only on some hosts.
+    # autogluon model dir: project tmp dir or system tmp
     if automl_results_folder is None:
         env_dir = os.environ.get('AUTOFEAT_AUTOML_DIR')
         if env_dir:
@@ -132,17 +127,11 @@ def run_auto_gluon(dataframe: pd.DataFrame, target_column: str, problem_type: st
     start = time.time()
 
     logging.debug(f"Train algorithms: {list(algorithms_to_run.keys())} with AutoGluon ...")
-    # Replace all inf/-inf with NaN, then drop rows with NaN target. Restricted
-    # to numeric columns: a blanket replace() over the whole dataframe crashes
-    # on category-dtype columns (AutoMLPipelineFeatureGenerator casts some
-    # columns to category) -- pandas tries to compare inf against the
-    # category's integer codes and overflows.
+    # inf -> NaN, only on numeric columns since replace() crashes on category columns
     numeric_cols = dataframe.select_dtypes(include=[np.number]).columns
     dataframe[numeric_cols] = dataframe[numeric_cols].replace([np.inf, -np.inf], np.nan)
     dataframe = dataframe.dropna(subset=[target_column])
-    # Final safety: force-coerce target to numeric and drop any remaining non-finite.
-    # Only applies to regression -- classification targets are class labels
-    # (e.g. "good"/"bad"), and to_numeric would NaN-out every row.
+    # make regression target numeric (not for classification, labels can be strings)
     if problem_type == 'regression':
         dataframe[target_column] = pd.to_numeric(dataframe[target_column], errors='coerce')
         dataframe = dataframe.dropna(subset=[target_column])

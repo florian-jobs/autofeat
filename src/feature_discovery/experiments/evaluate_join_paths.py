@@ -46,9 +46,8 @@ def resolve_path_list(bfs_result: AutoFeat, join_name: str):
 
 def build_hop_list(tables, path_tables):
     """
-    Resolve an ordered, deduplicated list of join hops (from_table, from_column, to_column, to_table)
-    needed to reach every table in `tables`, starting from the base table. Hops are ordered so that
-    a hop's `from_table` has always already been joined (or is the base table) by the time it's applied.
+    Hops (from_table, from_column, to_column, to_table) needed to reach all `tables` from the base
+    table, in an order where from_table is always joined already.
     """
     hops = []
     seen_tables = set()
@@ -91,11 +90,7 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
     selected_features = set()
     print(f"Evaluating {top_k_path_list} paths...")
     for path in tqdm.tqdm(top_k_path_list):
-        # Cooperative budget check at iteration boundary. Once the wall-clock
-        # deadline has been reached the loop exits with whatever results were
-        # accumulated so far. Catches the common case where the SIGALRM hard
-        # cap is delayed by a long C-extension call inside the previous
-        # iteration's ``evaluate_all_algorithms``.
+        # check budget here too, SIGALRM can be late during long C calls
         if budget_clock is not None and getattr(budget_clock, 'expired', False):
             print(f"[evaluate_paths] budget exhausted; stopping after {len(all_results)} paths", flush=True)
             break
@@ -132,8 +127,7 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
         print('Results for path:', results)
         all_results.extend(results)
 
-        # Persist after each iteration so an external killer (SIGALRM, SIGTERM,
-        # OOM, or a hard-deadline watchdog) leaves usable partial state behind.
+        # save after every path in case the process gets killed
         if partial_state_path is not None:
             try:
                 with open(partial_state_path, 'wb') as _f:
@@ -154,11 +148,9 @@ def evaluate_paths(bfs_result: AutoFeat, problem_type: str, algorithm: str, join
 def join_from_path(path: list[tuple], join_paths_df, lake_data_folder: str, lake_table_sep: str, base_table_sep: str,
                    base_node: str, target: str = None):
     """
-    `path` is an ordered list of (from_table, from_column, to_column, to_table) hops, as produced by
-    `build_hop_list`. Each hop's `from_table` is either `base_node` or a table joined by an earlier hop.
+    `path` is a list of hops from build_hop_list().
 
-    Note: the base table's own key column stays prefixed here (unlike target_column) since the
-    hop merges below are keyed on f"{table}.{column}"; autofeat_baseline.py renames it back afterward.
+    The base table's key column stays prefixed here, autofeat_baseline.py renames it afterwards.
     """
     joined_df, _ = get_df_with_prefix(
         join_paths_df,

@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# Runs ablation.py against each of the paper's benchmark datasets, then summarizes all
-# results/thesis/*.csv into one best-accuracy-per-dataset+algorithm table. A dataset with no
-# corpus present locally (missing data/benchmark/<name>/connections.csv) just errors and the
-# script continues on to the next one -- no -e, so one missing/failing dataset doesn't stop
-# the rest from running.
+# Runs ablation.py on all benchmark datasets and then summarize_results.py.
+# No -e so a missing dataset doesn't stop the other runs.
 #
 # Usage:
 #   ./run_all_ablation.sh [algorithm] [top_k]
 #
-# algorithm defaults to LR. See evaluation_algorithms.get_hyperparameters for supported values
-# (LR, RF, GBM, XT, XGB, KNN). top_k defaults to 15 (kappa in the paper).
+# algorithm: LR (default), RF, GBM, XT, XGB, KNN. top_k: default 15 (kappa in the paper).
 
 ALGORITHM="${1:-LR}"
 TOP_K="${2:-15}"
